@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import os
 from datetime import timezone
@@ -7,6 +6,7 @@ from datetime import timezone
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import Message
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -96,9 +96,23 @@ def build_task(message: Message) -> dict:
     }
 
 
-def send_to_backend(task: dict) -> None:
-    # TODO: заменить на HTTP-запрос к беку (httpx.post(BACKEND_URL, json=task))
-    print(json.dumps(task, ensure_ascii=False, indent=2), flush=True)
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+API_KEY = os.getenv("INGEST_API_KEY", "")
+
+
+async def send_to_backend(task: dict) -> bool:
+    """POST задачи на бэкенд (идемпотентно по chat.id + message_id). True, если принято (2xx)."""
+    headers = {"Authorization": f"Bearer {API_KEY}"} if API_KEY else {}
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.post(f"{BACKEND_URL}/api/v1/ingest/telegram", json=task, headers=headers)
+            r.raise_for_status()
+            return True
+        except httpx.HTTPError as e:
+            logging.warning("backend attempt %d failed: %s", attempt + 1, e)
+            await asyncio.sleep(2**attempt)
+    return False
 
 
 @dp.message(CommandStart())
@@ -110,16 +124,20 @@ async def start(message: Message):
 async def on_task(message: Message):
     if not message.from_user:
         return
-    send_to_backend(build_task(message))
-    await message.answer("✅ Задача принята")
+    if await send_to_backend(build_task(message)):
+        await message.answer("✅ Задача принята")
+    else:
+        await message.answer("⚠️ Бэкенд недоступен, задача не сохранена")
 
 
 @dp.edited_message()
 async def on_edit(message: Message):
     if not message.from_user:
         return
-    send_to_backend(build_task(message))
-    await message.answer("✏️ Задача обновлена")
+    if await send_to_backend(build_task(message)):
+        await message.answer("✏️ Задача обновлена")
+    else:
+        await message.answer("⚠️ Бэкенд недоступен, правка не сохранена")
 
 
 async def main():
