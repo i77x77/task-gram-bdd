@@ -89,7 +89,7 @@ def ingest_telegram_task(db: Session, payload: TelegramTaskIn) -> IngestResult:
         db.commit()
         return IngestResult(task_id=existing.id, status="updated")
 
-    column = svc.default_column(db)
+    column = svc.get_or_create_column(db, payload.column) if payload.column and payload.column.strip() else svc.default_column(db)
     task = Task(
         title=title,
         description=description,

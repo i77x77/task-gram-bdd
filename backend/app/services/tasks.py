@@ -41,6 +41,18 @@ def get_column(db: Session, column_id: int) -> BoardColumn:
     return col
 
 
+def get_or_create_column(db: Session, name: str) -> BoardColumn:
+    """Колонка по имени (без учёта регистра); если такой нет — создаётся в конце доски."""
+    name = name.strip()
+    columns = db.scalars(select(BoardColumn)).all()
+    column = next((c for c in columns if c.name.casefold() == name.casefold()), None)  # lower() в SQLite не знает кириллицу
+    if column is None:
+        column = BoardColumn(name=name, position=len(columns))
+        db.add(column)
+        db.flush()
+    return column
+
+
 def default_column(db: Session) -> BoardColumn:
     col = db.scalar(select(BoardColumn).order_by(BoardColumn.position, BoardColumn.id).limit(1))
     if col is None:

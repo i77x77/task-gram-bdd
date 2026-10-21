@@ -65,6 +65,7 @@ class TelegramTaskIn(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     priority: Priority | None = None
+    column: str | None = Field(default=None, max_length=64)  # имя колонки; нет такой — создаётся
 
 
 class IngestResult(BaseModel):

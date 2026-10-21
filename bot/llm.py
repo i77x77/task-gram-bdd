@@ -13,21 +13,32 @@ LLM_RETRIES = 3
 MAX_TASKS = 20
 PRIORITIES = {"low", "normal", "high", "urgent"}
 
-SYSTEM_PROMPT = """Ты разбираешь сообщения из Telegram и превращаешь их в задачи для канбан-доски.
+SYSTEM_PROMPT = """Ты разбираешь сообщения из Telegram и превращаешь их в аккуратные задачи для канбан-доски.
 В одном сообщении может быть несколько разных задач, причём без чётких разделителей, \
 с опечатками и в разговорной форме. Определи, где заканчивается одна задача и начинается другая.
 
 Для каждой задачи:
-- title: короткая чёткая формулировка действия (до 80 символов), с глагола в неопределённой форме \
-или императиве, без лишних слов. Язык — как в исходном сообщении.
-- description: детали, срок, контекст из сообщения; пустая строка, если добавить нечего. \
+- title: короткая чёткая формулировка действия (до 80 символов): исправь опечатки и грамматику, \
+убери слова-паразиты и мусор, начни с глагола, с заглавной буквы, без точки в конце. \
+Язык — как в исходном сообщении.
+- description: детали, срок, контекст из сообщения, аккуратно и без воды; пустая строка, если добавить нечего. \
 Ничего не выдумывай.
 - priority: low | normal | high | urgent. По умолчанию normal; high/urgent только если это ясно из текста \
 («срочно», «горит», «до вечера» и т.п.).
+- column: колонка доски, в которую положить задачу, определи по смыслу.
+
+Колонки на доске сейчас: {columns}.
+Правила выбора колонки:
+- Обычная новая задача — в первую колонку.
+- Если из текста видно, что работа уже идёт — в колонку про «в работе»; если уже сделано — в колонку про «готово».
+- Если задача «когда-нибудь», «на будущее», «потом», «идея», «не срочно, но хорошо бы» — в колонку Backlog.
+- Всегда используй имя существующей колонки точно как в списке. Если подходящей нет (например, нет Backlog \
+для отложенной задачи), укажи короткое имя новой колонки — она будет создана. \
+Не создавай новые колонки без необходимости.
 
 Если в сообщении нет задач (приветствие, болтовня), верни пустой список.
 Ответ — строго JSON без пояснений и markdown:
-{"tasks": [{"title": "...", "description": "...", "priority": "normal"}]}"""
+{"tasks": [{"title": "...", "description": "...", "priority": "normal", "column": "..."}]}"""
 
 
 def _clean(items: object) -> list[dict]:
@@ -39,8 +50,10 @@ def _clean(items: object) -> list[dict]:
         if not title:
             continue
         priority = str(item.get("priority") or "normal").lower()
+        column = str(item.get("column") or "").strip()[:64]
         tasks.append({
             "title": title[:200],
+            "column": column or None,
             "description": str(item.get("description") or "").strip(),
             "priority": priority if priority in PRIORITIES else "normal",
         })
@@ -54,11 +67,12 @@ def _parse(content: str) -> list[dict]:
     return _clean(data.get("tasks"))
 
 
-async def extract_tasks(text: str) -> list[dict] | None:
+async def extract_tasks(text: str, columns: list[str]) -> list[dict] | None:
     """Разбирает текст на задачи через LLM. None — LLM недоступна или ответила мусором."""
+    prompt = SYSTEM_PROMPT.replace("{columns}", ", ".join(columns) or "пока нет")
     body = {
         "model": LLM_MODEL,
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": text}],
+        "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": text}],
         "temperature": 0,
     }
     headers = {"Authorization": f"Bearer {LLM_API_KEY}"}

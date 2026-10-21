@@ -110,3 +110,13 @@ def test_ingest_multiple_parts_from_one_message(client):
     t = client.get(f"/api/v1/tasks/{a.json()['task_id']}").json()
     assert (t["title"], t["description"], t["priority"]) == ("Купить молоко", "2 литра", "high")
     assert client.get(f"/api/v1/tasks/{b.json()['task_id']}").json()["priority"] == "normal"
+
+
+def test_ingest_column_by_name_creates_missing(client):
+    a = ingest(client, part=0, title="Идея", column="Backlog")
+    b = ingest(client, part=1, title="Ещё идея", column="backlog")
+    c = ingest(client, part=2, title="В работу", column="in progress")
+    cols = {c["name"]: c["id"] for c in client.get("/api/v1/columns").json()}
+    assert "Backlog" in cols and list(cols).count("Backlog") == 1
+    for r, name in ((a, "Backlog"), (b, "Backlog"), (c, "In Progress")):
+        assert client.get(f"/api/v1/tasks/{r.json()['task_id']}").json()["column_id"] == cols[name]

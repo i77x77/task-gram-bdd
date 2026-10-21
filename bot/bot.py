@@ -122,12 +122,24 @@ async def start(message: Message):
     await message.answer("Привет! Отправь мне задачу текстом — я её запишу.")
 
 
+async def fetch_columns() -> list[str]:
+    """Имена колонок доски, чтобы LLM выбирала из существующих. При ошибке — пусто."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{BACKEND_URL}/api/v1/columns")
+        r.raise_for_status()
+        return [c["name"] for c in r.json()]
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
+        logging.warning("fetch columns failed: %s", e)
+        return []
+
+
 async def build_parts(message: Message) -> list[dict]:
     """Базовый payload + разбор текста через LLM. Пустой список — в сообщении нет задач."""
     base = build_task(message)
     if not base["text"].strip():  # только вложение — разбирать нечего
         return [base]
-    parsed = await extract_tasks(base["text"])
+    parsed = await extract_tasks(base["text"], await fetch_columns())
     if parsed is None:  # LLM недоступна — не теряем сообщение, сохраняем как есть
         return [base]
     return [
@@ -137,6 +149,7 @@ async def build_parts(message: Message) -> list[dict]:
             "title": t["title"],
             "description": t["description"],
             "priority": t["priority"],
+            "column": t["column"],
             "attachments": base["attachments"] if i == 0 else [],
         }
         for i, t in enumerate(parsed)
