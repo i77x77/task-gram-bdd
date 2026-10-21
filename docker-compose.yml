@@ -6,7 +6,7 @@ services:
       INGEST_API_KEY: ${INGEST_API_KEY:?set INGEST_API_KEY in .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - backend-data:/data
     healthcheck:
