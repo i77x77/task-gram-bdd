@@ -30,6 +30,9 @@ services:
       BOT_TOKEN: ${BOT_TOKEN:?set BOT_TOKEN in .env}
       BACKEND_URL: http://backend:8000
       INGEST_API_KEY: ${INGEST_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://vyceai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-DeepSeek-V4.1-Flash}
     depends_on:
       backend:
         condition: service_healthy

@@ -55,7 +55,11 @@ def _make_attachments(items: list[TgAttachment]) -> list[Attachment]:
 def ingest_telegram_task(db: Session, payload: TelegramTaskIn) -> IngestResult:
     existing = db.scalar(
         select(Task)
-        .where(Task.chat_id == payload.chat.id, Task.message_id == payload.message_id)
+        .where(
+            Task.chat_id == payload.chat.id,
+            Task.message_id == payload.message_id,
+            Task.part == payload.part,
+        )
         .options(*svc.TASK_LOAD)
     )
 
@@ -64,13 +68,18 @@ def ingest_telegram_task(db: Session, payload: TelegramTaskIn) -> IngestResult:
         return IngestResult(task_id=existing.id, status="duplicate")
 
     _upsert_user_and_chat(db, payload)
-    title, description = split_text(payload.text, payload.attachments)
+    if payload.title:
+        title, description = payload.title, payload.description or ""
+    else:
+        title, description = split_text(payload.text, payload.attachments)
     tags = svc.resolve_tags(db, payload.entities.hashtags)
     entities = payload.entities.model_dump()
 
     if existing is not None:
         # Правка сообщения: обновляем содержимое, колонку и позицию на доске не трогаем
         existing.title, existing.description = title, description
+        if payload.priority:
+            existing.priority = payload.priority
         existing.entities = entities
         existing.tags = tags
         existing.attachments = _make_attachments(payload.attachments)
@@ -89,6 +98,8 @@ def ingest_telegram_task(db: Session, payload: TelegramTaskIn) -> IngestResult:
         source="telegram",
         chat_id=payload.chat.id,
         message_id=payload.message_id,
+        part=payload.part,
+        priority=payload.priority or "normal",
         author_id=payload.author.id,
         sent_at=payload.sent_at,
         edited=payload.edited,

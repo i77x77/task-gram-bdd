@@ -60,6 +60,11 @@ class TelegramTaskIn(BaseModel):
     forwarded_from: dict | None = None
     reply_to: TgReplyTo | None = None
     edited: bool = False
+    # Результат разбора сообщения (LLM в боте). Если title не задан — заголовок берётся из первой строки text.
+    part: int = Field(default=0, ge=0)
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+    priority: Priority | None = None
 
 
 class IngestResult(BaseModel):

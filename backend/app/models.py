@@ -63,7 +63,7 @@ class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
         # Ключ идемпотентности для задач из Telegram; у ручных задач chat_id = NULL
-        UniqueConstraint("chat_id", "message_id", name="uq_task_chat_message"),
+        UniqueConstraint("chat_id", "message_id", "part", name="uq_task_chat_message_part"),
         Index("ix_tasks_column_position", "column_id", "position"),
     )
 
@@ -78,6 +78,7 @@ class Task(Base):
     source: Mapped[str] = mapped_column(String(16), default="manual")  # manual | telegram
     chat_id: Mapped[int | None] = mapped_column(ForeignKey("chats.id"))
     message_id: Mapped[int | None] = mapped_column(BigInteger)
+    part: Mapped[int] = mapped_column(default=0)  # номер задачи внутри сообщения (одно сообщение -> несколько задач)
     author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     sent_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     edited: Mapped[bool] = mapped_column(default=False)

@@ -98,3 +98,15 @@ def test_columns(client):
     board = client.get("/api/v1/board").json()
     assert [c["name"] for c in board["columns"]] == ["To Do", "In Progress", "Done"]
     assert len(board["columns"][1]["tasks"]) == 1
+
+
+def test_ingest_multiple_parts_from_one_message(client):
+    a = ingest(client, part=0, title="Купить молоко", description="2 литра", priority="high")
+    b = ingest(client, part=1, title="Позвонить маме")
+    assert a.status_code == b.status_code == 201
+    assert a.json()["task_id"] != b.json()["task_id"]
+    assert ingest(client, part=1, title="Позвонить маме").json()["status"] == "duplicate"
+
+    t = client.get(f"/api/v1/tasks/{a.json()['task_id']}").json()
+    assert (t["title"], t["description"], t["priority"]) == ("Купить молоко", "2 литра", "high")
+    assert client.get(f"/api/v1/tasks/{b.json()['task_id']}").json()["priority"] == "normal"

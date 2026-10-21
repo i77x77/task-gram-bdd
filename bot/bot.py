@@ -9,6 +9,8 @@ from aiogram.types import Message
 import httpx
 from dotenv import load_dotenv
 
+from llm import extract_tasks
+
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 dp = Dispatcher()
@@ -120,24 +122,52 @@ async def start(message: Message):
     await message.answer("Привет! Отправь мне задачу текстом — я её запишу.")
 
 
-@dp.message()
-async def on_task(message: Message):
+async def build_parts(message: Message) -> list[dict]:
+    """Базовый payload + разбор текста через LLM. Пустой список — в сообщении нет задач."""
+    base = build_task(message)
+    if not base["text"].strip():  # только вложение — разбирать нечего
+        return [base]
+    parsed = await extract_tasks(base["text"])
+    if parsed is None:  # LLM недоступна — не теряем сообщение, сохраняем как есть
+        return [base]
+    return [
+        {
+            **base,
+            "part": i,
+            "title": t["title"],
+            "description": t["description"],
+            "priority": t["priority"],
+            "attachments": base["attachments"] if i == 0 else [],
+        }
+        for i, t in enumerate(parsed)
+    ]
+
+
+async def process(message: Message, done: str, failed: str):
     if not message.from_user:
         return
-    if await send_to_backend(build_task(message)):
-        await message.answer("✅ Задача принята")
+    parts = await build_parts(message)
+    if not parts:
+        await message.answer("🤷 Задач в сообщении не нашёл")
+        return
+    results = [await send_to_backend(p) for p in parts]
+    if not all(results):
+        await message.answer(failed)
+    elif len(parts) == 1:
+        await message.answer(done)
     else:
-        await message.answer("⚠️ Бэкенд недоступен, задача не сохранена")
+        lines = "\n".join(f"• {p['title']}" for p in parts)
+        await message.answer(f"{done}: {len(parts)}\n{lines}")
+
+
+@dp.message()
+async def on_task(message: Message):
+    await process(message, "✅ Задача принята", "⚠️ Бэкенд недоступен, задача не сохранена")
 
 
 @dp.edited_message()
 async def on_edit(message: Message):
-    if not message.from_user:
-        return
-    if await send_to_backend(build_task(message)):
-        await message.answer("✏️ Задача обновлена")
-    else:
-        await message.answer("⚠️ Бэкенд недоступен, правка не сохранена")
+    await process(message, "✏️ Задача обновлена", "⚠️ Бэкенд недоступен, правка не сохранена")
 
 
 async def main():
