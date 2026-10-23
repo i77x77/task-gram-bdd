@@ -13,6 +13,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
 import type { Column, Tag, Task, TaskPatch } from "./api/types";
+import { BackgroundPicker } from "./components/BackgroundPicker";
 import { ColumnView } from "./components/ColumnView";
 import { TaskCardView } from "./components/TaskCard";
 import { TaskModal } from "./components/TaskModal";
@@ -167,6 +168,8 @@ export default function App() {
             </option>
           ))}
         </select>
+        <span className="spacer" />
+        <BackgroundPicker />
       </header>
 
       {error && (
