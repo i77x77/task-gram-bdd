@@ -132,6 +132,7 @@ function applyTheme(theme: Theme | null, custom: Custom, transparency: number) {
   if (root.dataset.theme === "custom") for (const [k, v] of Object.entries(customVars(custom))) set(k, v);
   if (transparency <= 0) return;
   set("--panel", getComputedStyle(root).getPropertyValue("--glass-strong").trim()); // панель настроек остаётся читаемой
+  set("--blur", `blur(${(8 * (1 - transparency / MAX_TRANSPARENCY)).toFixed(1)}px) saturate(120%)`); // размытие уходит вместе с подложкой
   for (const k of SURFACES) {
     const base = getComputedStyle(root).getPropertyValue(k).trim();
     if (base) set(k, `color-mix(in srgb, ${base} ${100 - transparency}%, transparent)`);
@@ -140,7 +141,9 @@ function applyTheme(theme: Theme | null, custom: Custom, transparency: number) {
 
 /** Применяет сохранённую тему до первого рендера, чтобы не мигало. */
 export function initTheme() {
-  applyTheme(storedTheme(), storedCustom(), storedTransparency());
+  const apply = () => applyTheme(storedTheme(), storedCustom(), storedTransparency());
+  apply();
+  window.addEventListener("load", apply, { once: true }); // стили могли подгрузиться позже — пересчитываем базовые цвета
 }
 
 export function ThemeToggle() {
