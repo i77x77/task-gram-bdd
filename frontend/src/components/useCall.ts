@@ -27,6 +27,10 @@ export function useCall(clientId: string, name: string) {
   const ws = useRef<WebSocket | null>(null);
   const local = useRef<MediaStream | null>(null);
   const conns = useRef(new Map<string, RTCPeerConnection>());
+  // Сигналы обрабатываем строго по очереди, иначе ICE-кандидат может обогнать offer/answer и потеряться
+  const chain = useRef<Promise<void>>(Promise.resolve());
+  // Пока offer/answer не отправлен, свои ICE-кандидаты придерживаем: они не должны прийти раньше SDP
+  const holding = useRef(new Map<string, RTCIceCandidate[]>());
 
   const upsert = (id: string, patch: Partial<CallPeer>) =>
     setPeers((list) =>
@@ -38,6 +42,7 @@ export function useCall(clientId: string, name: string) {
   const drop = (id: string) => {
     conns.current.get(id)?.close();
     conns.current.delete(id);
+    holding.current.delete(id);
     setPeers((list) => list.filter((p) => p.id !== id));
   };
 
@@ -49,7 +54,12 @@ export function useCall(clientId: string, name: string) {
     const pc = new RTCPeerConnection(ICE);
     conns.current.set(id, pc);
     local.current?.getTracks().forEach((t) => pc.addTrack(t, local.current!));
-    pc.onicecandidate = (e) => e.candidate && signal(id, { candidate: e.candidate });
+    pc.onicecandidate = (e) => {
+      if (!e.candidate) return;
+      const held = holding.current.get(id);
+      if (held) held.push(e.candidate);
+      else signal(id, { candidate: e.candidate });
+    };
     pc.ontrack = (e) => upsert(id, { stream: e.streams[0] });
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "failed") pc.restartIce();
@@ -57,11 +67,20 @@ export function useCall(clientId: string, name: string) {
     return pc;
   };
 
+  /** Отправляет offer/answer и только потом накопленные кандидаты. */
+  const sendSdp = (id: string, pc: RTCPeerConnection) => {
+    signal(id, { sdp: pc.localDescription });
+    holding.current.get(id)?.forEach((candidate) => signal(id, { candidate }));
+    holding.current.delete(id);
+  };
+
   const leave = useCallback(() => {
     ws.current?.close();
     ws.current = null;
     conns.current.forEach((pc) => pc.close());
     conns.current.clear();
+    holding.current.clear();
+    chain.current = Promise.resolve();
     local.current?.getTracks().forEach((t) => t.stop());
     local.current = null;
     setPeers([]);
@@ -89,15 +108,15 @@ export function useCall(clientId: string, name: string) {
     socket.onclose = () => {
       if (ws.current === socket) leave();
     };
-    socket.onmessage = async (e) => {
-      const msg = JSON.parse(e.data);
+    const handle = async (msg: any) => {
       if (msg.type === "peers") {
         // Мы новичок: предлагаем соединение всем, кто уже в комнате
         for (const p of msg.peers as { id: string; name: string }[]) {
           upsert(p.id, { name: p.name });
           const pc = connection(p.id);
+          holding.current.set(p.id, []);
           await pc.setLocalDescription(await pc.createOffer());
-          signal(p.id, { sdp: pc.localDescription });
+          sendSdp(p.id, pc);
         }
       } else if (msg.type === "joined") {
         upsert(msg.id, { name: msg.name });
@@ -107,15 +126,20 @@ export function useCall(clientId: string, name: string) {
         const { from, data } = msg;
         const pc = connection(from);
         if (data.sdp) {
+          if (data.sdp.type === "offer") holding.current.set(from, []);
           await pc.setRemoteDescription(data.sdp);
           if (data.sdp.type === "offer") {
             await pc.setLocalDescription(await pc.createAnswer());
-            signal(from, { sdp: pc.localDescription });
+            sendSdp(from, pc);
           }
         } else if (data.candidate) {
           await pc.addIceCandidate(data.candidate).catch(() => {});
         }
       }
+    };
+    socket.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      chain.current = chain.current.then(() => handle(msg)).catch((err) => console.warn("call signal failed", err));
     };
   };
 
