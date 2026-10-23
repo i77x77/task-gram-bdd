@@ -145,7 +145,7 @@ export function ChatPanel({ userName }: { userName: string }) {
   const state = open ? "open" : peek ? "peek" : "idle";
 
   return (
-    <section ref={island} className={`island ${state}`} aria-label="Общий чат">
+    <section ref={island} className={`island ${state}${!open && unread > 0 ? " unread" : ""}`} aria-label="Общий чат">
       <button
         className="island-bar"
         onClick={() => {
