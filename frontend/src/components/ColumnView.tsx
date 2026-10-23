@@ -38,21 +38,15 @@ export function ColumnView({ column, onOpen, onAdd, onRename, onDelete }: Props)
           }}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         />
-        <span className="count">{column.tasks.length}</span>
-        <button className="icon" title="Удалить колонку" onClick={() => onDelete(column)}>
+        <button className="icon" title="Удалить колонку" aria-label="Удалить колонку" onClick={() => onDelete(column)}>
           ✕
+        </button>
+        <button className="add-circle" title="Добавить задачу" aria-label="Добавить задачу" onClick={() => setAdding(true)}>
+          +
         </button>
       </header>
 
-      <div ref={setNodeRef} className="column-body">
-        <SortableContext items={column.tasks.map((t) => `task-${t.id}`)} strategy={verticalListSortingStrategy}>
-          {column.tasks.map((t) => (
-            <TaskCard key={t.id} task={t} onOpen={onOpen} />
-          ))}
-        </SortableContext>
-      </div>
-
-      {adding ? (
+      {adding && (
         <div className="add-form">
           <textarea
             autoFocus
@@ -69,11 +63,16 @@ export function ColumnView({ column, onOpen, onAdd, onRename, onDelete }: Props)
             onBlur={() => void submit()}
           />
         </div>
-      ) : (
-        <button className="add-btn" onClick={() => setAdding(true)}>
-          + Добавить задачу
-        </button>
       )}
+
+      <div ref={setNodeRef} className="column-body">
+        <SortableContext items={column.tasks.map((t) => `task-${t.id}`)} strategy={verticalListSortingStrategy}>
+          {column.tasks.map((t) => (
+            <TaskCard key={t.id} task={t} onOpen={onOpen} />
+          ))}
+        </SortableContext>
+      </div>
+
     </section>
   );
 }
