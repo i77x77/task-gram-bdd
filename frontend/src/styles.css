@@ -10,10 +10,10 @@
   --glass-strong: rgba(255, 255, 255, 0.8);
   --glass-hover: rgba(255, 255, 255, 0.92);
   --surface: var(--glass);
-  --col: #a3bde6;
-  --card: #dfe2e8;
-  --pill: #cdd1d9;
-  --plus-bg: #b4c9ec;
+  --col: rgba(255, 255, 255, 0.38);
+  --card: rgba(255, 255, 255, 0.78);
+  --pill: rgba(0, 0, 0, 0.08);
+  --plus-bg: rgba(0, 0, 0, 0.1);
   --plus: #0a4fc4;
   --accent-on-card: #0f4aa8;
   --text: #111827;
@@ -37,10 +37,10 @@
     --glass: rgba(24, 28, 44, 0.72);
     --glass-strong: rgba(24, 28, 44, 0.8);
     --glass-hover: rgba(48, 54, 80, 0.9);
-    --col: #2b3a55;
-    --card: #3a4358;
-    --pill: #4a5470;
-    --plus-bg: #3a4d70;
+    --col: rgba(20, 24, 36, 0.55);
+    --card: rgba(48, 54, 76, 0.75);
+    --pill: rgba(255, 255, 255, 0.14);
+    --plus-bg: rgba(255, 255, 255, 0.16);
     --plus: #9ec1ff;
     --accent-on-card: #9ec1ff;
     --text: #f3f4f6;
@@ -60,10 +60,10 @@
   --glass: rgba(24, 28, 44, 0.72);
   --glass-strong: rgba(24, 28, 44, 0.8);
   --glass-hover: rgba(48, 54, 80, 0.9);
-  --col: #2b3a55;
-  --card: #3a4358;
-  --pill: #4a5470;
-  --plus-bg: #3a4d70;
+  --col: rgba(20, 24, 36, 0.55);
+  --card: rgba(48, 54, 76, 0.75);
+  --pill: rgba(255, 255, 255, 0.14);
+  --plus-bg: rgba(255, 255, 255, 0.16);
   --plus: #9ec1ff;
   --accent-on-card: #9ec1ff;
   --text: #f3f4f6;
@@ -143,8 +143,9 @@ textarea { resize: vertical; }
 .board { flex: 1; display: flex; gap: 20px; padding: 16px; overflow-x: auto; align-items: flex-start; }
 .column {
   flex: 0 0 300px; max-height: 100%; display: flex; flex-direction: column;
-  background: var(--col); border-radius: 14px; padding: 14px 16px 16px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  background: var(--col); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px 16px;
+  -webkit-backdrop-filter: blur(32px) saturate(170%); backdrop-filter: blur(32px) saturate(170%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28), inset 0 1px 0 var(--edge);
 }
 .column.over { outline: 2px dashed var(--accent); outline-offset: 2px; }
 .column-head { display: flex; align-items: center; gap: 6px; padding: 0 0 14px; }
