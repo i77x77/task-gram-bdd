@@ -188,3 +188,21 @@ def test_chat(client):
 
     online = client.post("/api/v1/chat/heartbeat", json={"client_id": "c3", "name": "Боря"}).json()
     assert {u["name"] for u in online} >= {"Боря", "Аня"}
+
+
+def test_app_password(client, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setenv("APP_PASSWORD", "sesame")
+    get_settings.cache_clear()
+    try:
+        assert client.get("/api/v1/board").status_code == 401
+        assert client.get("/api/v1/auth/check", headers={"X-App-Password": "nope"}).status_code == 401
+        ok = {"X-App-Password": "sesame"}
+        assert client.get("/api/v1/auth/check", headers=ok).status_code == 200
+        assert client.get("/api/v1/board", headers=ok).status_code == 200
+        assert ingest(client).status_code == 201  # бот авторизуется своим ключом, а не паролем интерфейса
+        assert client.get("/health").status_code == 200
+    finally:
+        monkeypatch.delenv("APP_PASSWORD")
+        get_settings.cache_clear()

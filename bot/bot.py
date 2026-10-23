@@ -101,6 +101,7 @@ def build_task(message: Message) -> dict:
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 API_KEY = os.getenv("INGEST_API_KEY", "")
+APP_HEADERS = {"X-App-Password": os.environ["APP_PASSWORD"]} if os.getenv("APP_PASSWORD") else {}
 
 
 async def send_to_backend(task: dict) -> bool:
@@ -148,9 +149,9 @@ async def fetch_columns(board: str) -> list[str]:
     """Имена колонок доски, чтобы LLM выбирала из существующих. При ошибке — пусто."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            boards = (await client.get(f"{BACKEND_URL}/api/v1/boards")).json()
+            boards = (await client.get(f"{BACKEND_URL}/api/v1/boards", headers=APP_HEADERS)).json()
             board_id = next(b["id"] for b in boards if b["name"] == board)
-            r = await client.get(f"{BACKEND_URL}/api/v1/columns", params={"board_id": board_id})
+            r = await client.get(f"{BACKEND_URL}/api/v1/columns", params={"board_id": board_id}, headers=APP_HEADERS)
         r.raise_for_status()
         return [c["name"] for c in r.json()]
     except (httpx.HTTPError, KeyError, TypeError, ValueError, StopIteration) as e:

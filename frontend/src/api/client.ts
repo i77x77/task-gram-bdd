@@ -2,11 +2,37 @@ import type { Board, BoardInfo, ChatMessage, OnlineUser, Column, Tag, Task, Task
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
+const PASSWORD_KEY = "appPassword";
+
+export const getPassword = (): string => {
+  try {
+    return localStorage.getItem(PASSWORD_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+export const setPassword = (value: string) => {
+  try {
+    if (value) localStorage.setItem(PASSWORD_KEY, value);
+    else localStorage.removeItem(PASSWORD_KEY);
+  } catch {
+    /* без хранилища придётся вводить пароль при каждой загрузке */
+  }
+  memoryPassword = value;
+};
+
+let memoryPassword = getPassword();
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", "X-App-Password": memoryPassword, ...init?.headers },
   });
+  if (res.status === 401) {
+    window.dispatchEvent(new Event("auth-required"));
+    throw new Error("Требуется пароль");
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -29,6 +55,7 @@ export interface BoardFilter {
 }
 
 export const api = {
+  checkAuth: () => request<{ ok: boolean }>("/auth/check"),
   boards: () => request<BoardInfo[]>("/boards"),
   board: ({ q, tag, boardId }: BoardFilter = {}) => {
     const params = new URLSearchParams();

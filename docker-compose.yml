@@ -4,6 +4,7 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/taskgram.db
       INGEST_API_KEY: ${INGEST_API_KEY:?set INGEST_API_KEY in .env}
+      APP_PASSWORD: ${APP_PASSWORD:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
     ports:
       - "127.0.0.1:8001:8000"
@@ -30,6 +31,7 @@ services:
       BOT_TOKEN: ${BOT_TOKEN:?set BOT_TOKEN in .env}
       BACKEND_URL: http://backend:8000
       INGEST_API_KEY: ${INGEST_API_KEY}
+      APP_PASSWORD: ${APP_PASSWORD:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://vyceai.com/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-DeepSeek-V4.1-Flash}

@@ -1,15 +1,16 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
 from app import models  # noqa: F401  (регистрация моделей в metadata)
-from app.api import board, chat, ingest, tasks
+from app.api import auth, board, chat, ingest, tasks
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.migrate import migrate
+from app.security import require_app_password
 from app.services.tasks import Conflict, NotFound, seed_boards
 
 
@@ -55,6 +56,8 @@ def health():
 
 API_PREFIX = "/api/v1"
 app.include_router(ingest.router, prefix=API_PREFIX)
-app.include_router(tasks.router, prefix=API_PREFIX)
-app.include_router(board.router, prefix=API_PREFIX)
-app.include_router(chat.router, prefix=API_PREFIX)
+protected = [Depends(require_app_password)]
+app.include_router(auth.router, prefix=API_PREFIX)
+app.include_router(tasks.router, prefix=API_PREFIX, dependencies=protected)
+app.include_router(board.router, prefix=API_PREFIX, dependencies=protected)
+app.include_router(chat.router, prefix=API_PREFIX, dependencies=protected)
