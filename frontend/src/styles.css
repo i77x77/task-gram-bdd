@@ -18,8 +18,8 @@
   --accent-on-card: #0f4aa8;
   --text: #111827;
   --muted: #4a5361;
-  --border: rgba(255, 255, 255, 0.6);
-  --edge: rgba(255, 255, 255, 0.9);
+  --border: rgba(255, 255, 255, 0.3);
+  --edge: rgba(255, 255, 255, 0.45);
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
   --accent: #1553b8;
   --on-accent: #ffffff;
@@ -29,7 +29,7 @@
   --high: #a85a00;
   --urgent: #b42318;
   --on-bg: #ffffff;
-  --blur: blur(22px) saturate(180%);
+  --blur: blur(8px) saturate(120%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -45,8 +45,8 @@
     --accent-on-card: #9ec1ff;
     --text: #f3f4f6;
     --muted: #b8c0cf;
-    --border: rgba(255, 255, 255, 0.2);
-    --edge: rgba(255, 255, 255, 0.3);
+    --border: rgba(255, 255, 255, 0.1);
+    --edge: rgba(255, 255, 255, 0.15);
     --accent: #8ab4ff;
     --on-accent: #0b1220;
     --danger: #ff9b94;
@@ -68,8 +68,8 @@
   --accent-on-card: #9ec1ff;
   --text: #f3f4f6;
   --muted: #b8c0cf;
-  --border: rgba(255, 255, 255, 0.2);
-  --edge: rgba(255, 255, 255, 0.3);
+  --border: rgba(255, 255, 255, 0.1);
+  --edge: rgba(255, 255, 255, 0.15);
   --accent: #8ab4ff;
   --on-accent: #0b1220;
   --danger: #ff9b94;
@@ -142,9 +142,9 @@ textarea { resize: vertical; }
 
 .board { flex: 1; display: flex; gap: 20px; padding: 16px; overflow-x: auto; align-items: flex-start; }
 .column {
-  flex: 0 0 300px; max-height: 100%; display: flex; flex-direction: column;
+  flex: 1 1 0; min-width: 300px; max-height: 100%; display: flex; flex-direction: column;
   background: var(--col); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px 16px;
-  -webkit-backdrop-filter: blur(32px) saturate(170%); backdrop-filter: blur(32px) saturate(170%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%); backdrop-filter: blur(8px) saturate(120%);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28), inset 0 1px 0 var(--edge);
 }
 .column.over { outline: 2px dashed var(--accent); outline-offset: 2px; }

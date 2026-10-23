@@ -9,10 +9,9 @@ interface Props {
   onOpen: (t: Task) => void;
   onAdd: (columnId: number, title: string) => Promise<void>;
   onRename: (columnId: number, name: string) => void;
-  onDelete: (column: Column) => void;
 }
 
-export function ColumnView({ column, onOpen, onAdd, onRename, onDelete }: Props) {
+export function ColumnView({ column, onOpen, onAdd, onRename }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `col-${column.id}` });
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
@@ -38,9 +37,6 @@ export function ColumnView({ column, onOpen, onAdd, onRename, onDelete }: Props)
           }}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         />
-        <button className="icon" title="Удалить колонку" aria-label="Удалить колонку" onClick={() => onDelete(column)}>
-          ✕
-        </button>
         <button className="add-circle" title="Добавить задачу" aria-label="Добавить задачу" onClick={() => setAdding(true)}>
           +
         </button>

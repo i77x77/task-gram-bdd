@@ -39,7 +39,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [dragged, setDragged] = useState<Task | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
-  const [newColumn, setNewColumn] = useState("");
   const dragging = useRef(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -138,24 +137,6 @@ export default function App() {
 
   // ---------- действия ----------
 
-  const addColumn = async () => {
-    const name = newColumn.trim();
-    if (!name) return;
-    setNewColumn("");
-    await run(() => api.createColumn(name));
-  };
-
-  const deleteColumn = async (col: Column) => {
-    if (columns.length === 1) return setError("Нельзя удалить последнюю колонку");
-    let moveTo: number | undefined;
-    if (col.tasks.length > 0) {
-      const target = columns.find((c) => c.id !== col.id)!;
-      if (!confirm(`В «${col.name}» есть задачи (${col.tasks.length}). Перенести их в «${target.name}» и удалить колонку?`)) return;
-      moveTo = target.id;
-    } else if (!confirm(`Удалить колонку «${col.name}»?`)) return;
-    await run(() => api.deleteColumn(col.id, moveTo));
-  };
-
   return (
     <div className="app">
       <header className="topbar">
@@ -199,18 +180,8 @@ export default function App() {
                 onOpen={(t) => setOpenId(t.id)}
                 onAdd={(columnId, title) => run(() => api.createTask({ title, column_id: columnId }))}
                 onRename={(id, name) => run(() => api.renameColumn(id, name))}
-                onDelete={deleteColumn}
               />
             ))}
-            <div className="new-column">
-              <input
-                placeholder="+ Новая колонка"
-                value={newColumn}
-                onChange={(e) => setNewColumn(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && void addColumn()}
-                onBlur={() => void addColumn()}
-              />
-            </div>
           </main>
           <DragOverlay>{dragged && <TaskCardView task={dragged} overlay />}</DragOverlay>
         </DndContext>
