@@ -156,7 +156,9 @@ textarea { resize: vertical; }
 
 .app { height: 100%; display: flex; flex-direction: column; }
 .topbar { display: flex; gap: 12px; align-items: center; padding: 12px 16px 0; }
-.topbar h1 { font-size: 18px; margin: 0 8px 0 0; color: var(--on-bg); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.brand { display: flex; align-items: center; gap: 10px; margin: 0 12px 0 0; color: var(--on-bg); filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.5)); }
+.brand-mark { height: 28px; width: 28px; flex: none; }
+.brand-name { font-size: 22px; font-weight: 800; letter-spacing: 0.04em; line-height: 1; }
 .topbar .search { max-width: 280px; }
 .topbar select { width: auto; }
 .error { background: #8f1d14; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); color: var(--on-bg); padding: 8px 16px; margin: 12px 16px 0; border-radius: 12px; cursor: pointer; }

@@ -15,6 +15,7 @@ import { api } from "./api/client";
 import type { BoardInfo, Column, Tag, Task, TaskPatch } from "./api/types";
 import { BackgroundPicker } from "./components/BackgroundPicker";
 import { ChatPanel } from "./components/ChatPanel";
+import { Logo } from "./components/Logo";
 import { ColumnView } from "./components/ColumnView";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { TaskCardView } from "./components/TaskCard";
@@ -172,7 +173,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>TaskGram</h1>
+        <Logo />
         <input className="search" placeholder="Поиск…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select value={tag} onChange={(e) => setTag(e.target.value)}>
           <option value="">Все теги</option>
