@@ -195,3 +195,31 @@ class BoardOut(BaseModel):
 class TagOut(BaseModel):
     name: str
     count: int
+
+
+# ---------- Общий чат ----------
+
+class ChatMessageCreate(BaseModel):
+    client_id: str = Field(min_length=1, max_length=64)
+    author_name: str = Field(default="", max_length=100)
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class ChatMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    client_id: str
+    author_name: str
+    text: str
+    created_at: datetime
+
+
+class Heartbeat(BaseModel):
+    client_id: str = Field(min_length=1, max_length=64)
+    name: str = Field(default="", max_length=100)
+
+
+class OnlineUser(BaseModel):
+    client_id: str
+    name: str

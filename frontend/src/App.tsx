@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
 import type { BoardInfo, Column, Tag, Task, TaskPatch } from "./api/types";
 import { BackgroundPicker } from "./components/BackgroundPicker";
+import { ChatPanel } from "./components/ChatPanel";
 import { ColumnView } from "./components/ColumnView";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { TaskCardView } from "./components/TaskCard";
@@ -245,6 +246,8 @@ export default function App() {
           <DragOverlay>{dragged && <TaskCardView task={dragged} overlay />}</DragOverlay>
         </DndContext>
       )}
+
+      <ChatPanel userName={userName.trim()} />
 
       {openTask && (
         <TaskModal

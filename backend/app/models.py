@@ -68,6 +68,18 @@ class BoardColumn(Base):
     )
 
 
+class ChatMessage(Base):
+    """Сообщение общего веб-чата (не связано с Telegram)."""
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[str] = mapped_column(String(64))  # случайный id браузера
+    author_name: Mapped[str] = mapped_column(String(100))
+    text: Mapped[str] = mapped_column(String(2000))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
 class Tag(Base):
     __tablename__ = "tags"
 

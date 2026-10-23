@@ -70,3 +70,16 @@ export interface TaskCreate extends TaskPatch {
   column_id?: number;
   author_name?: string;
 }
+
+export interface ChatMessage {
+  id: number;
+  client_id: string;
+  author_name: string;
+  text: string;
+  created_at: string;
+}
+
+export interface OnlineUser {
+  client_id: string;
+  name: string;
+}

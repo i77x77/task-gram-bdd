@@ -175,3 +175,16 @@ def test_migrate_old_schema():
     assert rows == [("ЕПУТС", "To Do"), ("ЕПУТС", "Done"), ("ЕПУТС", "A"), ("ЕПУТС", "B"), ("КИПАРИСС", "A"), ("КИПАРИСС", "B")]
     with engine.connect() as c:
         assert c.execute(text("SELECT column_id FROM tasks")).scalar() == 2
+
+
+def test_chat(client):
+    assert client.get("/api/v1/chat/messages").json() == []
+    a = client.post("/api/v1/chat/messages", json={"client_id": "c1", "author_name": "Аня", "text": " привет "}).json()
+    b = client.post("/api/v1/chat/messages", json={"client_id": "c2", "text": "хай"}).json()
+    assert (a["text"], b["author_name"]) == ("привет", "Гость")
+    assert [m["id"] for m in client.get("/api/v1/chat/messages").json()] == [a["id"], b["id"]]
+    assert [m["id"] for m in client.get(f"/api/v1/chat/messages?after_id={a['id']}").json()] == [b["id"]]
+    assert client.post("/api/v1/chat/messages", json={"client_id": "c1", "text": ""}).status_code == 422
+
+    online = client.post("/api/v1/chat/heartbeat", json={"client_id": "c3", "name": "Боря"}).json()
+    assert {u["name"] for u in online} >= {"Боря", "Аня"}

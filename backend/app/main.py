@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
 from app import models  # noqa: F401  (регистрация моделей в metadata)
-from app.api import board, ingest, tasks
+from app.api import board, chat, ingest, tasks
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.migrate import migrate
@@ -57,3 +57,4 @@ API_PREFIX = "/api/v1"
 app.include_router(ingest.router, prefix=API_PREFIX)
 app.include_router(tasks.router, prefix=API_PREFIX)
 app.include_router(board.router, prefix=API_PREFIX)
+app.include_router(chat.router, prefix=API_PREFIX)

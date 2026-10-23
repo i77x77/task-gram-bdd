@@ -1,4 +1,4 @@
-import type { Board, BoardInfo, Column, Tag, Task, TaskCreate, TaskPatch } from "./types";
+import type { Board, BoardInfo, ChatMessage, OnlineUser, Column, Tag, Task, TaskCreate, TaskPatch } from "./types";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
@@ -38,6 +38,10 @@ export const api = {
     const qs = params.toString();
     return request<Board>(`/board${qs ? `?${qs}` : ""}`);
   },
+  chatMessages: (afterId = 0) => request<ChatMessage[]>(`/chat/messages?after_id=${afterId}`),
+  sendChatMessage: (client_id: string, author_name: string, text: string) =>
+    request<ChatMessage>("/chat/messages", json("POST", { client_id, author_name, text })),
+  heartbeat: (client_id: string, name: string) => request<OnlineUser[]>("/chat/heartbeat", json("POST", { client_id, name })),
   tags: () => request<Tag[]>("/tags"),
   createTask: (body: TaskCreate) => request<Task>("/tasks", json("POST", body)),
   updateTask: (id: number, body: TaskPatch) => request<Task>(`/tasks/${id}`, json("PATCH", body)),
