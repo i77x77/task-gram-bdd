@@ -62,7 +62,14 @@ const ME = clientId();
 function PeerAudio({ peer }: { peer: CallPeer }) {
   const ref = useRef<HTMLAudioElement>(null);
   useEffect(() => {
-    if (ref.current) ref.current.srcObject = peer.stream;
+    const el = ref.current;
+    if (!el) return;
+    el.srcObject = peer.stream;
+    // Safari/iOS могут заблокировать автозапуск: пробуем ещё раз при первом касании страницы
+    el.play().catch(() => {
+      const retry = () => void el.play().catch(() => {});
+      document.addEventListener("pointerdown", retry, { once: true });
+    });
   }, [peer.stream]);
   return <audio ref={ref} autoPlay />;
 }
@@ -199,6 +206,18 @@ export function ChatPanel({ userName }: { userName: string }) {
           )}
         </div>
         {call.error && <div className="call-error">{call.error}</div>}
+        {call.joined && (
+          <div className="call-peers">
+            {call.peers.length === 0 && <span className="muted">Пока вы одни в созвоне</span>}
+            {call.peers.map((p) => (
+              <span key={p.id} className={`call-peer ${p.state}`}>
+                {p.state === "connected" ? "🟢" : p.state === "failed" ? "🔴" : "🟡"} {p.name}
+                {p.state === "failed" && " — нет связи"}
+                {(p.state === "new" || p.state === "connecting") && " — подключение…"}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="chat-online">
           {online.map((u) => (
             <span key={u.client_id} className={`chat-user${u.client_id === ME ? " me" : ""}`}>

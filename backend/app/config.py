@@ -8,6 +8,9 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/taskgram.db"
     ingest_api_key: str = ""
+    turn_secret: str = ""  # общий секрет с coturn; пусто = только STUN
+    turn_host: str = ""  # публичный IP/хост TURN-сервера
+    turn_port: int = 3478
     app_password: str = ""  # пароль входа в веб-интерфейс; пусто = без пароля
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
     default_boards: tuple[str, ...] = ("ЕПУТС", "КИПАРИСС", "АИС ОМБУ", "Презентации")

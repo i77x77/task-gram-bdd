@@ -210,16 +210,16 @@ def test_app_password(client, monkeypatch):
         get_settings.cache_clear()
 
 def test_call_signaling(client):
-    with client.websocket_connect("/api/v1/call/ws?client_id=a&name=Аня") as a:
+    with client.websocket_connect("/api/v1/call/ws?client_id=a-tab1&chat_id=a&name=Аня") as a:
         assert a.receive_json() == {"type": "peers", "peers": []}
-        with client.websocket_connect("/api/v1/call/ws?client_id=b&name=Боря") as b:
-            assert b.receive_json() == {"type": "peers", "peers": [{"id": "a", "name": "Аня"}]}
-            assert a.receive_json() == {"type": "joined", "id": "b", "name": "Боря"}
+        with client.websocket_connect("/api/v1/call/ws?client_id=b-tab1&chat_id=b&name=Боря") as b:
+            assert b.receive_json() == {"type": "peers", "peers": [{"id": "a-tab1", "name": "Аня"}]}
+            assert a.receive_json() == {"type": "joined", "id": "b-tab1", "name": "Боря"}
             online = client.post("/api/v1/chat/heartbeat", json={"client_id": "a", "name": "Аня"}).json()
             assert {u["client_id"]: u["in_call"] for u in online}["a"] is True
-            b.send_json({"to": "a", "data": {"sdp": "x"}})
-            assert a.receive_json() == {"type": "signal", "from": "b", "data": {"sdp": "x"}}
-        assert a.receive_json() == {"type": "left", "id": "b"}
+            b.send_json({"to": "a-tab1", "data": {"sdp": "x"}})
+            assert a.receive_json() == {"type": "signal", "from": "b-tab1", "data": {"sdp": "x"}}
+        assert a.receive_json() == {"type": "left", "id": "b-tab1"}
 
 
 def test_call_requires_password(client, monkeypatch):
@@ -237,4 +237,29 @@ def test_call_requires_password(client, monkeypatch):
             assert ws.receive_json()["type"] == "peers"
     finally:
         monkeypatch.delenv("APP_PASSWORD")
+        get_settings.cache_clear()
+
+
+def test_call_same_chat_user_in_two_tabs(client):
+    """Два устройства с одинаковым отпечатком (chat_id) не выкидывают друг друга из созвона."""
+    with client.websocket_connect("/api/v1/call/ws?client_id=t1&chat_id=same&name=A") as a:
+        a.receive_json()
+        with client.websocket_connect("/api/v1/call/ws?client_id=t2&chat_id=same&name=B") as b:
+            assert b.receive_json()["peers"] == [{"id": "t1", "name": "A"}]
+            assert a.receive_json()["type"] == "joined"
+
+
+def test_ice_servers(client, monkeypatch):
+    from app.config import get_settings
+
+    assert client.get("/api/v1/call/ice").json()["iceServers"] == [{"urls": "stun:stun.l.google.com:19302"}]
+    monkeypatch.setenv("TURN_SECRET", "s3")
+    monkeypatch.setenv("TURN_HOST", "1.2.3.4")
+    get_settings.cache_clear()
+    try:
+        turn = client.get("/api/v1/call/ice").json()["iceServers"][1]
+        assert turn["urls"][0] == "turn:1.2.3.4:3478?transport=udp"
+        assert turn["username"].endswith(":pulse") and turn["credential"]
+    finally:
+        monkeypatch.undo()
         get_settings.cache_clear()

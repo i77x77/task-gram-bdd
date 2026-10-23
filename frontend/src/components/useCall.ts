@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BASE, getPassword } from "../api/client";
+import { BASE, api, getPassword } from "../api/client";
 
-const ICE: RTCConfiguration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+const STUN_ONLY: RTCConfiguration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
 export interface CallPeer {
   id: string;
   name: string;
   stream: MediaStream | null;
+  state: RTCPeerConnectionState | "new";
 }
 
-function wsUrl(clientId: string, name: string): string {
+function wsUrl(tabId: string, chatId: string, name: string): string {
   const url = new URL(`${BASE}/call/ws`, location.href);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("client_id", tabId);
+  url.searchParams.set("chat_id", chatId);
   url.searchParams.set("name", name);
   url.searchParams.set("password", getPassword());
   return url.toString();
@@ -31,18 +33,22 @@ export function useCall(clientId: string, name: string) {
   const chain = useRef<Promise<void>>(Promise.resolve());
   // Пока offer/answer не отправлен, свои ICE-кандидаты придерживаем: они не должны прийти раньше SDP
   const holding = useRef(new Map<string, RTCIceCandidate[]>());
+  const ice = useRef<RTCConfiguration>(STUN_ONLY);
+  const initiators = useRef(new Set<string>()); // с кем соединение начали мы: только мы можем перезапустить ICE
+  const ping = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const upsert = (id: string, patch: Partial<CallPeer>) =>
     setPeers((list) =>
       list.some((p) => p.id === id)
         ? list.map((p) => (p.id === id ? { ...p, ...patch } : p))
-        : [...list, { id, name: "Гость", stream: null, ...patch }],
+        : [...list, { id, name: "Гость", stream: null, state: "new", ...patch }],
     );
 
   const drop = (id: string) => {
     conns.current.get(id)?.close();
     conns.current.delete(id);
     holding.current.delete(id);
+    initiators.current.delete(id);
     setPeers((list) => list.filter((p) => p.id !== id));
   };
 
@@ -51,7 +57,7 @@ export function useCall(clientId: string, name: string) {
   const connection = (id: string): RTCPeerConnection => {
     const existing = conns.current.get(id);
     if (existing) return existing;
-    const pc = new RTCPeerConnection(ICE);
+    const pc = new RTCPeerConnection(ice.current);
     conns.current.set(id, pc);
     local.current?.getTracks().forEach((t) => pc.addTrack(t, local.current!));
     pc.onicecandidate = (e) => {
@@ -61,10 +67,28 @@ export function useCall(clientId: string, name: string) {
       else signal(id, { candidate: e.candidate });
     };
     pc.ontrack = (e) => upsert(id, { stream: e.streams[0] });
+    let timer: ReturnType<typeof setTimeout> | undefined;
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed") pc.restartIce();
+      upsert(id, { state: pc.connectionState });
+      clearTimeout(timer);
+      const bad = pc.connectionState === "failed" || pc.connectionState === "disconnected";
+      // Связь пропала: инициатор перезапускает ICE (после короткой паузы для «disconnected», он часто проходит сам)
+      if (bad && initiators.current.has(id)) {
+        timer = setTimeout(() => void restart(id, pc), pc.connectionState === "failed" ? 0 : 4000);
+      }
     };
     return pc;
+  };
+
+  const restart = async (id: string, pc: RTCPeerConnection) => {
+    if (conns.current.get(id) !== pc || pc.connectionState === "connected" || pc.connectionState === "closed") return;
+    try {
+      holding.current.set(id, []);
+      await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
+      sendSdp(id, pc);
+    } catch {
+      holding.current.delete(id);
+    }
   };
 
   /** Отправляет offer/answer и только потом накопленные кандидаты. */
@@ -75,11 +99,14 @@ export function useCall(clientId: string, name: string) {
   };
 
   const leave = useCallback(() => {
+    if (ping.current) clearInterval(ping.current);
+    ping.current = null;
     ws.current?.close();
     ws.current = null;
     conns.current.forEach((pc) => pc.close());
     conns.current.clear();
     holding.current.clear();
+    initiators.current.clear();
     chain.current = Promise.resolve();
     local.current?.getTracks().forEach((t) => t.stop());
     local.current = null;
@@ -91,20 +118,39 @@ export function useCall(clientId: string, name: string) {
   const join = async () => {
     setError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Микрофон доступен только по HTTPS (или на localhost)");
+      setError("Микрофон работает только по HTTPS: откройте https-адрес и подтвердите сертификат");
       return;
     }
     try {
       local.current = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
-    } catch {
-      setError("Нет доступа к микрофону");
+    } catch (e) {
+      const n = e instanceof DOMException ? e.name : "";
+      setError(
+        n === "NotAllowedError"
+          ? "Микрофон запрещён: разрешите доступ в настройках браузера для этого сайта"
+          : n === "NotFoundError"
+            ? "Микрофон не найден"
+            : n === "NotReadableError"
+              ? "Микрофон занят другим приложением"
+              : "Не удалось получить доступ к микрофону",
+      );
       return;
     }
-    const socket = new WebSocket(wsUrl(clientId, name));
+    // TURN-учётки выдаёт бэкенд; если не вышло — работаем на одном STUN
+    ice.current = await api.iceServers().then(
+      (r) => ({ iceServers: r.iceServers }),
+      () => STUN_ONLY,
+    );
+    // Id в созвоне уникален для каждой вкладки: одинаковые «отпечатки» устройств не выкидывают друг друга
+    const tabId = `${clientId}-${Math.random().toString(36).slice(2, 8)}`;
+    const socket = new WebSocket(wsUrl(tabId, clientId, name));
     ws.current = socket;
-    socket.onopen = () => setJoined(true);
+    socket.onopen = () => {
+      setJoined(true);
+      ping.current = setInterval(() => socket.readyState === WebSocket.OPEN && socket.send("{}"), 25_000); // не даём прокси закрыть простаивающее соединение
+    };
     socket.onclose = () => {
       if (ws.current === socket) leave();
     };
@@ -113,6 +159,7 @@ export function useCall(clientId: string, name: string) {
         // Мы новичок: предлагаем соединение всем, кто уже в комнате
         for (const p of msg.peers as { id: string; name: string }[]) {
           upsert(p.id, { name: p.name });
+          initiators.current.add(p.id);
           const pc = connection(p.id);
           holding.current.set(p.id, []);
           await pc.setLocalDescription(await pc.createOffer());

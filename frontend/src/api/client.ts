@@ -69,6 +69,7 @@ export const api = {
   sendChatMessage: (client_id: string, author_name: string, text: string) =>
     request<ChatMessage>("/chat/messages", json("POST", { client_id, author_name, text })),
   heartbeat: (client_id: string, name: string) => request<OnlineUser[]>("/chat/heartbeat", json("POST", { client_id, name })),
+  iceServers: () => request<{ iceServers: RTCIceServer[] }>("/call/ice"),
   tags: () => request<Tag[]>("/tags"),
   createTask: (body: TaskCreate) => request<Task>("/tasks", json("POST", body)),
   updateTask: (id: number, body: TaskPatch) => request<Task>(`/tasks/${id}`, json("PATCH", body)),

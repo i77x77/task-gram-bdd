@@ -22,8 +22,9 @@ def _online() -> list[OnlineUser]:
     now = time.monotonic()
     for cid in [c for c, (_, seen) in _presence.items() if now - seen > ONLINE_TTL]:
         del _presence[cid]
+    in_call = {p[2] for p in participants.values()}
     users = sorted(_presence.items(), key=lambda kv: kv[1][0].casefold())
-    return [OnlineUser(client_id=cid, name=name, in_call=cid in participants) for cid, (name, _) in users]
+    return [OnlineUser(client_id=cid, name=name, in_call=cid in in_call) for cid, (name, _) in users]
 
 
 @router.get("/messages", response_model=list[ChatMessageOut])
