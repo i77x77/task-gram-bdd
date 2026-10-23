@@ -262,3 +262,6 @@ textarea { resize: vertical; }
 .chat-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
 .chat-form { display: flex; gap: 8px; }
 .chat-form input { flex: 1; min-width: 0; }
+.chat-head { cursor: move; touch-action: none; user-select: none; }
+.chat-list { scrollbar-width: none; }
+.chat-list::-webkit-scrollbar { display: none; }

@@ -29,15 +29,52 @@ export function ChatPanel({ userName }: { userName: string }) {
   const [seen, setSeen] = useState(0); // id последнего прочитанного сообщения
   const lastId = useRef(0);
   const list = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("chatPos") ?? "null");
+    } catch {
+      return null;
+    }
+  });
+  const panel = useRef<HTMLElement>(null);
+
+  const startDrag = (e: React.PointerEvent) => {
+    const el = panel.current;
+    if (!el || e.button !== 0) return;
+    const r = el.getBoundingClientRect();
+    const dx = e.clientX - r.left;
+    const dy = e.clientY - r.top;
+    let last = { x: r.left, y: r.top };
+    const move = (ev: PointerEvent) => {
+      last = {
+        x: Math.min(Math.max(ev.clientX - dx, 0), window.innerWidth - r.width),
+        y: Math.min(Math.max(ev.clientY - dy, 0), window.innerHeight - r.height),
+      };
+      setPos(last);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      try {
+        localStorage.setItem("chatPos", JSON.stringify(last));
+      } catch {
+        /* позиция просто не запомнится */
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
   const openRef = useRef(open);
   openRef.current = open;
 
   const poll = useCallback(async () => {
     try {
       const fresh = await api.chatMessages(lastId.current);
-      if (fresh.length) {
-        lastId.current = fresh[fresh.length - 1].id;
-        setMessages((m) => [...m, ...fresh]);
+      // Опрос и отправка могут получить одно и то же сообщение одновременно — отбрасываем уже добавленные
+      const added = fresh.filter((m) => m.id > lastId.current);
+      if (added.length) {
+        lastId.current = added[added.length - 1].id;
+        setMessages((m) => [...m, ...added]);
       }
     } catch {
       /* чат второстепенен: ошибки сети не показываем */
@@ -84,8 +121,13 @@ export function ChatPanel({ userName }: { userName: string }) {
         💬{unread > 0 && <span className="chat-badge">{unread}</span>}
       </button>
       {open && (
-        <section className="chat-panel" aria-label="Общий чат">
-          <header className="chat-head">
+        <section
+          ref={panel}
+          className="chat-panel"
+          aria-label="Общий чат"
+          style={pos ? { left: Math.min(pos.x, window.innerWidth - 120), top: Math.min(pos.y, window.innerHeight - 60), right: "auto", bottom: "auto" } : undefined}
+        >
+          <header className="chat-head" onPointerDown={startDrag} title="Перетащите, чтобы переместить">
             <b>Общий чат</b>
             <span className="muted">онлайн: {online.length}</span>
           </header>
