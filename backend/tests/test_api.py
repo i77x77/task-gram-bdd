@@ -1,3 +1,5 @@
+import pytest
+
 from tests.conftest import AUTH, tg_payload
 
 
@@ -203,6 +205,36 @@ def test_app_password(client, monkeypatch):
         assert client.get("/api/v1/board", headers=ok).status_code == 200
         assert ingest(client).status_code == 201  # бот авторизуется своим ключом, а не паролем интерфейса
         assert client.get("/health").status_code == 200
+    finally:
+        monkeypatch.delenv("APP_PASSWORD")
+        get_settings.cache_clear()
+
+def test_call_signaling(client):
+    with client.websocket_connect("/api/v1/call/ws?client_id=a&name=Аня") as a:
+        assert a.receive_json() == {"type": "peers", "peers": []}
+        with client.websocket_connect("/api/v1/call/ws?client_id=b&name=Боря") as b:
+            assert b.receive_json() == {"type": "peers", "peers": [{"id": "a", "name": "Аня"}]}
+            assert a.receive_json() == {"type": "joined", "id": "b", "name": "Боря"}
+            online = client.post("/api/v1/chat/heartbeat", json={"client_id": "a", "name": "Аня"}).json()
+            assert {u["client_id"]: u["in_call"] for u in online}["a"] is True
+            b.send_json({"to": "a", "data": {"sdp": "x"}})
+            assert a.receive_json() == {"type": "signal", "from": "b", "data": {"sdp": "x"}}
+        assert a.receive_json() == {"type": "left", "id": "b"}
+
+
+def test_call_requires_password(client, monkeypatch):
+    from starlette.websockets import WebSocketDisconnect
+
+    from app.config import get_settings
+
+    monkeypatch.setenv("APP_PASSWORD", "sesame")
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect("/api/v1/call/ws?client_id=a&password=nope") as ws:
+                ws.receive_json()
+        with client.websocket_connect("/api/v1/call/ws?client_id=a&password=sesame") as ws:
+            assert ws.receive_json()["type"] == "peers"
     finally:
         monkeypatch.delenv("APP_PASSWORD")
         get_settings.cache_clear()

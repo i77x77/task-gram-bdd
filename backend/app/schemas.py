@@ -223,3 +223,4 @@ class Heartbeat(BaseModel):
 class OnlineUser(BaseModel):
     client_id: str
     name: str
+    in_call: bool = False

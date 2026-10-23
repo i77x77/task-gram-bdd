@@ -1,6 +1,6 @@
 import type { Board, BoardInfo, ChatMessage, OnlineUser, Column, Tag, Task, TaskCreate, TaskPatch } from "./types";
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
+export const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
 const PASSWORD_KEY = "appPassword";
 
