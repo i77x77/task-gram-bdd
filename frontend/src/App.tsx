@@ -15,6 +15,7 @@ import { api } from "./api/client";
 import type { Column, Tag, Task, TaskPatch } from "./api/types";
 import { BackgroundPicker } from "./components/BackgroundPicker";
 import { ColumnView } from "./components/ColumnView";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { TaskCardView } from "./components/TaskCard";
 import { TaskModal } from "./components/TaskModal";
 
@@ -170,6 +171,7 @@ export default function App() {
         </select>
         <span className="spacer" />
         <BackgroundPicker />
+        <ThemeToggle />
       </header>
 
       {error && (

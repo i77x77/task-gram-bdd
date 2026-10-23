@@ -27,7 +27,7 @@
   --blur: blur(22px) saturate(180%);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --scrim: rgba(0, 0, 0, 0.35);
     --glass: rgba(24, 28, 44, 0.72);
     --glass-strong: rgba(24, 28, 44, 0.8);
@@ -44,6 +44,23 @@
     --high: #ffb454;
     --urgent: #ff8a80;
   }
+}
+:root[data-theme="dark"] {
+  --scrim: rgba(0, 0, 0, 0.35);
+  --glass: rgba(24, 28, 44, 0.72);
+  --glass-strong: rgba(24, 28, 44, 0.8);
+  --glass-hover: rgba(48, 54, 80, 0.9);
+  --col: rgba(16, 19, 32, 0.6);
+  --text: #f3f4f6;
+  --muted: #b8c0cf;
+  --border: rgba(255, 255, 255, 0.2);
+  --edge: rgba(255, 255, 255, 0.3);
+  --accent: #8ab4ff;
+  --on-accent: #0b1220;
+  --danger: #ff9b94;
+  --low: #aab3c2;
+  --high: #ffb454;
+  --urgent: #ff8a80;
 }
 
 * { box-sizing: border-box; }
