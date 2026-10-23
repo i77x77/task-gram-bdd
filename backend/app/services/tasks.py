@@ -2,7 +2,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import BoardColumn, Tag, Task
+from app.models import Board, BoardColumn, Tag, Task
 
 
 class NotFound(Exception):
@@ -20,11 +20,37 @@ TASK_LOAD = (
 )
 
 
-def seed_columns(db: Session, names: tuple[str, ...]) -> None:
-    if db.scalar(select(func.count(BoardColumn.id))):
-        return
-    db.add_all(BoardColumn(name=n, position=i) for i, n in enumerate(names))
+def seed_boards(db: Session, boards: tuple[str, ...], columns: tuple[str, ...]) -> None:
+    """Гарантирует доски проектов и стартовые колонки у досок без колонок."""
+    existing = {b.name for b in db.scalars(select(Board))}
+    for name in boards:
+        if name not in existing:
+            db.add(Board(name=name, position=len(existing)))
+            existing.add(name)
+    db.flush()
+    for board in db.scalars(select(Board)):
+        if not db.scalar(select(func.count(BoardColumn.id)).where(BoardColumn.board_id == board.id)):
+            db.add_all(BoardColumn(board_id=board.id, name=n, position=i) for i, n in enumerate(columns))
     db.commit()
+
+
+def get_board(db: Session, board_id: int | None) -> Board:
+    """Доска по id; без id — первая."""
+    if board_id is None:
+        board = db.scalar(select(Board).order_by(Board.position, Board.id).limit(1))
+    else:
+        board = db.get(Board, board_id)
+    if board is None:
+        raise NotFound(f"board {board_id}" if board_id is not None else "no boards")
+    return board
+
+
+def get_board_by_name(db: Session, name: str) -> Board:
+    name = name.strip()
+    board = next((b for b in db.scalars(select(Board)) if b.name.casefold() == name.casefold()), None)
+    if board is None:
+        raise NotFound(f"board {name}")
+    return board
 
 
 def get_task(db: Session, task_id: int) -> Task:
@@ -41,20 +67,22 @@ def get_column(db: Session, column_id: int) -> BoardColumn:
     return col
 
 
-def get_or_create_column(db: Session, name: str) -> BoardColumn:
-    """Колонка по имени (без учёта регистра); если такой нет — создаётся в конце доски."""
+def get_or_create_column(db: Session, name: str, board_id: int) -> BoardColumn:
+    """Колонка доски по имени (без учёта регистра); если такой нет — создаётся в конце доски."""
     name = name.strip()
-    columns = db.scalars(select(BoardColumn)).all()
+    columns = db.scalars(select(BoardColumn).where(BoardColumn.board_id == board_id)).all()
     column = next((c for c in columns if c.name.casefold() == name.casefold()), None)  # lower() в SQLite не знает кириллицу
     if column is None:
-        column = BoardColumn(name=name, position=len(columns))
+        column = BoardColumn(board_id=board_id, name=name, position=len(columns))
         db.add(column)
         db.flush()
     return column
 
 
-def default_column(db: Session) -> BoardColumn:
-    col = db.scalar(select(BoardColumn).order_by(BoardColumn.position, BoardColumn.id).limit(1))
+def default_column(db: Session, board_id: int) -> BoardColumn:
+    col = db.scalar(
+        select(BoardColumn).where(BoardColumn.board_id == board_id).order_by(BoardColumn.position, BoardColumn.id).limit(1)
+    )
     if col is None:
         raise NotFound("no columns on the board")
     return col
@@ -114,7 +142,13 @@ def move_task(db: Session, task: Task, column_id: int, position: int) -> Task:
 
 
 def reorder_columns(db: Session, column: BoardColumn, position: int) -> None:
-    cols = list(db.scalars(select(BoardColumn).where(BoardColumn.id != column.id).order_by(BoardColumn.position, BoardColumn.id)))
+    cols = list(
+        db.scalars(
+            select(BoardColumn)
+            .where(BoardColumn.board_id == column.board_id, BoardColumn.id != column.id)
+            .order_by(BoardColumn.position, BoardColumn.id)
+        )
+    )
     cols.insert(min(position, len(cols)), column)
     for i, c in enumerate(cols):
         c.position = i

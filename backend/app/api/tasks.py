@@ -50,7 +50,7 @@ def list_tasks(
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(body: TaskCreate, db: Session = Depends(get_db)):
-    column = svc.get_column(db, body.column_id) if body.column_id else svc.default_column(db)
+    column = svc.get_column(db, body.column_id) if body.column_id else svc.default_column(db, svc.get_board(db, body.board_id).id)
     task = Task(
         title=body.title.strip(),
         description=body.description,

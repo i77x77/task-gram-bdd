@@ -1,4 +1,4 @@
-import type { Board, Column, Tag, Task, TaskCreate, TaskPatch } from "./types";
+import type { Board, BoardInfo, Column, Tag, Task, TaskCreate, TaskPatch } from "./types";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
@@ -25,11 +25,14 @@ const json = (method: string, body: unknown): RequestInit => ({ method, body: JS
 export interface BoardFilter {
   q?: string;
   tag?: string;
+  boardId?: number;
 }
 
 export const api = {
-  board: ({ q, tag }: BoardFilter = {}) => {
+  boards: () => request<BoardInfo[]>("/boards"),
+  board: ({ q, tag, boardId }: BoardFilter = {}) => {
     const params = new URLSearchParams();
+    if (boardId) params.set("board_id", String(boardId));
     if (q) params.set("q", q);
     if (tag) params.set("tag", tag);
     const qs = params.toString();

@@ -120,3 +120,58 @@ def test_ingest_column_by_name_creates_missing(client):
     assert "Backlog" in cols and list(cols).count("Backlog") == 1
     for r, name in ((a, "Backlog"), (b, "Backlog"), (c, "In Progress")):
         assert client.get(f"/api/v1/tasks/{r.json()['task_id']}").json()["column_id"] == cols[name]
+
+
+def test_boards_are_isolated(client):
+    boards = client.get("/api/v1/boards").json()
+    assert [b["name"] for b in boards] == ["ЕПУТС", "КИПАРИСС", "АИС ОМБУ"]
+    kip = boards[1]["id"]
+
+    board = client.get(f"/api/v1/board?board_id={kip}").json()
+    assert board["name"] == "КИПАРИСС"
+    assert [c["name"] for c in board["columns"]] == ["To Do", "In Progress", "Done"]
+
+    r = client.post("/api/v1/tasks", json={"title": "в кипарисс", "board_id": kip})
+    assert r.status_code == 201
+    assert r.json()["column_id"] == board["columns"][0]["id"]
+    assert client.get("/api/v1/board").json()["columns"][0]["tasks"] == []  # первая доска пуста
+
+    # одинаковые имена колонок в разных досках допустимы
+    assert client.post(f"/api/v1/columns?board_id={kip}", json={"name": "Review"}).status_code == 201
+    assert client.post("/api/v1/columns", json={"name": "Review"}).status_code == 201
+    assert client.get("/api/v1/board?board_id=999").status_code == 404
+
+
+def test_ingest_to_board_by_name(client):
+    r = ingest(client, title="Задача", board="аис омбу")
+    assert r.status_code == 201
+    board = client.get("/api/v1/board?board_id=3").json()
+    assert [t["title"] for t in board["columns"][0]["tasks"]] == ["Задача"]
+    assert ingest(client, part=1, title="X", board="нет такой").status_code == 404
+
+
+def test_migrate_old_schema():
+    """Старая БД: общие колонки с unique(name) и задачи — всё уходит на первую доску."""
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.orm import sessionmaker
+
+    from app import models  # noqa: F401
+    from app.database import Base
+    from app.migrate import migrate
+    from app.services.tasks import seed_boards
+
+    engine = create_engine("sqlite://", poolclass=__import__("sqlalchemy").pool.StaticPool, connect_args={"check_same_thread": False})
+    with engine.begin() as c:
+        c.execute(text("CREATE TABLE board_columns (id INTEGER PRIMARY KEY, name VARCHAR(64) NOT NULL UNIQUE, position INTEGER NOT NULL)"))
+        c.execute(text("INSERT INTO board_columns VALUES (1,'To Do',0),(2,'Done',1)"))
+    Base.metadata.create_all(engine)  # создаёт boards и остальные таблицы, board_columns остаётся старой
+    with engine.begin() as c:
+        c.execute(text("INSERT INTO tasks (title, description, column_id, position, priority, source, part, edited, created_at, updated_at) "
+                       "VALUES ('старая', '', 2, 0, 'normal', 'manual', 0, 0, '2026-01-01', '2026-01-01')"))
+    migrate(engine, "ЕПУТС")
+    with sessionmaker(bind=engine)() as db:
+        seed_boards(db, ("ЕПУТС", "КИПАРИСС"), ("A", "B"))
+        rows = db.execute(text("SELECT b.name, c.name FROM board_columns c JOIN boards b ON b.id=c.board_id ORDER BY b.id, c.position")).all()
+    assert rows == [("ЕПУТС", "To Do"), ("ЕПУТС", "Done"), ("КИПАРИСС", "A"), ("КИПАРИСС", "B")]
+    with engine.connect() as c:
+        assert c.execute(text("SELECT column_id FROM tasks")).scalar() == 2

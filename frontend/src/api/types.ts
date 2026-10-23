@@ -41,7 +41,14 @@ export interface Column {
   tasks: Task[];
 }
 
+export interface BoardInfo {
+  id: number;
+  name: string;
+}
+
 export interface Board {
+  id: number;
+  name: string;
   columns: Column[];
 }
 

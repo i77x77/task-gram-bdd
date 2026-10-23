@@ -89,7 +89,12 @@ def ingest_telegram_task(db: Session, payload: TelegramTaskIn) -> IngestResult:
         db.commit()
         return IngestResult(task_id=existing.id, status="updated")
 
-    column = svc.get_or_create_column(db, payload.column) if payload.column and payload.column.strip() else svc.default_column(db)
+    board = svc.get_board_by_name(db, payload.board) if payload.board and payload.board.strip() else svc.get_board(db, None)
+    column = (
+        svc.get_or_create_column(db, payload.column, board.id)
+        if payload.column and payload.column.strip()
+        else svc.default_column(db, board.id)
+    )
     task = Task(
         title=title,
         description=description,

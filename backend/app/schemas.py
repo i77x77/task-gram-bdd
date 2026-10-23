@@ -66,6 +66,7 @@ class TelegramTaskIn(BaseModel):
     description: str | None = None
     priority: Priority | None = None
     column: str | None = Field(default=None, max_length=64)  # имя колонки; нет такой — создаётся
+    board: str | None = Field(default=None, max_length=64)  # имя доски (проекта); по умолчанию — первая
 
 
 class IngestResult(BaseModel):
@@ -128,6 +129,7 @@ class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = ""
     column_id: int | None = None  # по умолчанию — первая колонка
+    board_id: int | None = None  # доска для колонки по умолчанию; по умолчанию — первая
     priority: Priority = "normal"
     due_at: datetime | None = None
     tags: list[str] = []
@@ -172,11 +174,21 @@ class ColumnOut(BaseModel):
     position: int
 
 
+class BoardInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    position: int
+
+
 class BoardColumnOut(ColumnOut):
     tasks: list[TaskOut]
 
 
 class BoardOut(BaseModel):
+    id: int
+    name: str
     columns: list[BoardColumnOut]
 
 

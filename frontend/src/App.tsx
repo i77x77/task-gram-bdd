@@ -12,7 +12,7 @@ import {
 import { arrayMove } from "@dnd-kit/sortable";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
-import type { Column, Tag, Task, TaskPatch } from "./api/types";
+import type { BoardInfo, Column, Tag, Task, TaskPatch } from "./api/types";
 import { BackgroundPicker } from "./components/BackgroundPicker";
 import { ColumnView } from "./components/ColumnView";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -46,13 +46,37 @@ export default function App() {
       return "";
     }
   });
+  const [boards, setBoards] = useState<BoardInfo[]>([]);
+  const [boardId, setBoardId] = useState<number | null>(() => {
+    try {
+      return Number(localStorage.getItem("boardId")) || null;
+    } catch {
+      return null;
+    }
+  });
   const dragging = useRef(false);
+
+  const selectBoard = (id: number) => {
+    if (id === boardId) return;
+    setBoardId(id);
+    setColumns([]);
+    setLoading(true);
+    try {
+      localStorage.setItem("boardId", String(id));
+    } catch {
+      /* localStorage недоступен */
+    }
+  };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const refresh = useCallback(async () => {
     try {
-      const [board, tagList] = await Promise.all([api.board({ q: q.trim(), tag }), api.tags()]);
+      const list = await api.boards();
+      setBoards(list);
+      const current = list.find((b) => b.id === boardId) ?? list[0];
+      if (!current) return;
+      const [board, tagList] = await Promise.all([api.board({ q: q.trim(), tag, boardId: current.id }), api.tags()]);
       if (!dragging.current) setColumns(board.columns);
       setTags(tagList);
       setError(null);
@@ -61,7 +85,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [q, tag]);
+  }, [q, tag, boardId]);
 
   // Поиск с дебаунсом + периодический опрос: новые задачи из Telegram появляются сами.
   useEffect(() => {
@@ -175,6 +199,20 @@ export default function App() {
         <BackgroundPicker />
         <ThemeToggle />
       </header>
+
+      {boards.length > 0 && (
+        <nav className="board-tabs seg" aria-label="Проекты">
+          {boards.map((b) => (
+            <button
+              key={b.id}
+              className={b.id === (boards.find((x) => x.id === boardId) ?? boards[0]).id ? "active" : ""}
+              onClick={() => selectBoard(b.id)}
+            >
+              {b.name}
+            </button>
+          ))}
+        </nav>
+      )}
 
       {error && (
         <div className="error" onClick={() => setError(null)}>

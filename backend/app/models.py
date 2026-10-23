@@ -40,12 +40,28 @@ class Chat(Base):
     title: Mapped[str | None] = mapped_column(String(256))
 
 
-class BoardColumn(Base):
-    __tablename__ = "board_columns"
+class Board(Base):
+    """Доска проекта: у каждого проекта свой набор колонок."""
+
+    __tablename__ = "boards"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(64), unique=True)
     position: Mapped[int] = mapped_column(default=0)
+
+    columns: Mapped[list["BoardColumn"]] = relationship(back_populates="board", order_by="BoardColumn.position")
+
+
+class BoardColumn(Base):
+    __tablename__ = "board_columns"
+    __table_args__ = (UniqueConstraint("board_id", "name", name="uq_column_board_name"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    board_id: Mapped[int] = mapped_column(ForeignKey("boards.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(64))
+    position: Mapped[int] = mapped_column(default=0)
+
+    board: Mapped[Board] = relationship(back_populates="columns")
 
     tasks: Mapped[list["Task"]] = relationship(
         back_populates="column", order_by="Task.position", cascade="save-update"
