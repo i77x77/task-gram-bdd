@@ -33,12 +33,12 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --scrim: rgba(28, 16, 8, 0.5);
-    --glass: rgba(46, 30, 20, 0.72);
-    --glass-strong: rgba(46, 30, 20, 0.8);
-    --glass-hover: rgba(84, 56, 38, 0.9);
-    --col: rgba(40, 26, 17, 0.55);
-    --card: rgba(80, 54, 38, 0.75);
+    --scrim: rgba(0, 0, 0, 0.35);
+    --glass: rgba(24, 28, 44, 0.72);
+    --glass-strong: rgba(24, 28, 44, 0.8);
+    --glass-hover: rgba(48, 54, 80, 0.9);
+    --col: rgba(20, 24, 36, 0.55);
+    --card: rgba(48, 54, 76, 0.75);
     --pill: rgba(255, 255, 255, 0.14);
     --plus-bg: rgba(255, 255, 255, 0.16);
     --plus: #9ec1ff;
@@ -56,6 +56,28 @@
   }
 }
 :root[data-theme="dark"] {
+  --scrim: rgba(0, 0, 0, 0.35);
+  --glass: rgba(24, 28, 44, 0.72);
+  --glass-strong: rgba(24, 28, 44, 0.8);
+  --glass-hover: rgba(48, 54, 80, 0.9);
+  --col: rgba(20, 24, 36, 0.55);
+  --card: rgba(48, 54, 76, 0.75);
+  --pill: rgba(255, 255, 255, 0.14);
+  --plus-bg: rgba(255, 255, 255, 0.16);
+  --plus: #9ec1ff;
+  --accent-on-card: #9ec1ff;
+  --text: #f3f4f6;
+  --muted: #b8c0cf;
+  --border: rgba(255, 255, 255, 0.1);
+  --edge: rgba(255, 255, 255, 0.15);
+  --accent: #8ab4ff;
+  --on-accent: #0b1220;
+  --danger: #ff9b94;
+  --low: #aab3c2;
+  --high: #ffb454;
+  --urgent: #ff8a80;
+}
+:root[data-theme="brown"] {
   --scrim: rgba(28, 16, 8, 0.5);
   --glass: rgba(46, 30, 20, 0.72);
   --glass-strong: rgba(46, 30, 20, 0.8);

@@ -1,13 +1,13 @@
 import { useState } from "react";
 
-type Theme = "light" | "dark";
+type Theme = "light" | "dark" | "brown";
 
 const systemTheme = (): Theme => (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 
 function stored(): Theme | null {
   try {
     const v = localStorage.getItem("theme");
-    return v === "light" || v === "dark" ? v : null;
+    return v === "light" || v === "dark" || v === "brown" ? v : null;
   } catch {
     return null;
   }
@@ -23,7 +23,7 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(() => stored() ?? systemTheme());
 
   const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
+    const next: Theme = theme === "light" ? "dark" : theme === "dark" ? "brown" : "light";
     setTheme(next);
     document.documentElement.dataset.theme = next;
     try {
@@ -33,9 +33,10 @@ export function ThemeToggle() {
     }
   };
 
+  const label = { light: "☀️ Светлая", dark: "🌙 Тёмная", brown: "🟤 Коричневая" }[theme];
   return (
-    <button onClick={toggle} title={theme === "dark" ? "Светлая тема" : "Тёмная тема"} aria-label="Переключить тему">
-      {theme === "dark" ? "☀️ Светлая" : "🌙 Тёмная"}
+    <button onClick={toggle} title="Сменить тему" aria-label="Сменить тему">
+      {label}
     </button>
   );
 }
