@@ -45,7 +45,7 @@ def test_ingest_attachments_and_empty_text(client):
 def test_board_and_move(client):
     ids = [ingest(client, message_id=i, text=f"t{i}").json()["task_id"] for i in range(1, 4)]
     board = client.get("/api/v1/board").json()
-    assert [c["name"] for c in board["columns"]] == ["To Do", "In Progress", "Done"]
+    assert [c["name"] for c in board["columns"]] == ["To Do", "In Progress", "Done", "Backlog"]
     assert [t["title"] for t in board["columns"][0]["tasks"]] == ["t1", "t2", "t3"]
 
     client.post(f"/api/v1/tasks/{ids[2]}/move", json={"column_id": 2, "position": 0})
@@ -85,7 +85,7 @@ def test_columns(client):
     r = client.post("/api/v1/columns", json={"name": "Review", "position": 2})
     assert r.status_code == 201
     names = [c["name"] for c in client.get("/api/v1/columns").json()]
-    assert names == ["To Do", "In Progress", "Review", "Done"]
+    assert names == ["To Do", "In Progress", "Review", "Done", "Backlog"]
     assert client.post("/api/v1/columns", json={"name": "Review"}).status_code == 409
 
     client.patch(f"/api/v1/columns/{r.json()['id']}", json={"position": 0})
@@ -96,7 +96,7 @@ def test_columns(client):
     assert client.delete(f"/api/v1/columns/{first}").status_code == 409
     assert client.delete(f"/api/v1/columns/{first}?move_to=2").status_code == 204
     board = client.get("/api/v1/board").json()
-    assert [c["name"] for c in board["columns"]] == ["To Do", "In Progress", "Done"]
+    assert [c["name"] for c in board["columns"]] == ["To Do", "In Progress", "Done", "Backlog"]
     assert len(board["columns"][1]["tasks"]) == 1
 
 
@@ -129,7 +129,7 @@ def test_boards_are_isolated(client):
 
     board = client.get(f"/api/v1/board?board_id={kip}").json()
     assert board["name"] == "КИПАРИСС"
-    assert [c["name"] for c in board["columns"]] == ["To Do", "In Progress", "Done"]
+    assert [c["name"] for c in board["columns"]] == ["To Do", "In Progress", "Done", "Backlog"]
 
     r = client.post("/api/v1/tasks", json={"title": "в кипарисс", "board_id": kip})
     assert r.status_code == 201
@@ -172,6 +172,6 @@ def test_migrate_old_schema():
     with sessionmaker(bind=engine)() as db:
         seed_boards(db, ("ЕПУТС", "КИПАРИСС"), ("A", "B"))
         rows = db.execute(text("SELECT b.name, c.name FROM board_columns c JOIN boards b ON b.id=c.board_id ORDER BY b.id, c.position")).all()
-    assert rows == [("ЕПУТС", "To Do"), ("ЕПУТС", "Done"), ("КИПАРИСС", "A"), ("КИПАРИСС", "B")]
+    assert rows == [("ЕПУТС", "To Do"), ("ЕПУТС", "Done"), ("ЕПУТС", "A"), ("ЕПУТС", "B"), ("КИПАРИСС", "A"), ("КИПАРИСС", "B")]
     with engine.connect() as c:
         assert c.execute(text("SELECT column_id FROM tasks")).scalar() == 2

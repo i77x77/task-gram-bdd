@@ -21,7 +21,7 @@ TASK_LOAD = (
 
 
 def seed_boards(db: Session, boards: tuple[str, ...], columns: tuple[str, ...]) -> None:
-    """Гарантирует доски проектов и стартовые колонки у досок без колонок."""
+    """Гарантирует доски проектов и наличие стартовых колонок на каждой."""
     existing = {b.name for b in db.scalars(select(Board))}
     for name in boards:
         if name not in existing:
@@ -29,8 +29,12 @@ def seed_boards(db: Session, boards: tuple[str, ...], columns: tuple[str, ...]) 
             existing.add(name)
     db.flush()
     for board in db.scalars(select(Board)):
-        if not db.scalar(select(func.count(BoardColumn.id)).where(BoardColumn.board_id == board.id)):
-            db.add_all(BoardColumn(board_id=board.id, name=n, position=i) for i, n in enumerate(columns))
+        have = {c.name.casefold() for c in db.scalars(select(BoardColumn).where(BoardColumn.board_id == board.id))}
+        pos = len(have)
+        for n in columns:  # недостающие стартовые колонки добавляются в конец
+            if n.casefold() not in have:
+                db.add(BoardColumn(board_id=board.id, name=n, position=pos))
+                pos += 1
     db.commit()
 
 
