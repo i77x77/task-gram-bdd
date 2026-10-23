@@ -188,3 +188,16 @@ def test_chat(client):
 
     online = client.post("/api/v1/chat/heartbeat", json={"client_id": "c3", "name": "Боря"}).json()
     assert {u["name"] for u in online} >= {"Боря", "Аня"}
+
+
+def test_call_signaling(client):
+    with client.websocket_connect("/api/v1/call/ws?client_id=a&name=Аня") as a:
+        assert a.receive_json() == {"type": "peers", "peers": []}
+        with client.websocket_connect("/api/v1/call/ws?client_id=b&name=Боря") as b:
+            assert b.receive_json() == {"type": "peers", "peers": [{"id": "a", "name": "Аня"}]}
+            assert a.receive_json() == {"type": "joined", "id": "b", "name": "Боря"}
+            online = client.post("/api/v1/chat/heartbeat", json={"client_id": "a", "name": "Аня"}).json()
+            assert {u["client_id"]: u["in_call"] for u in online}["a"] is True
+            b.send_json({"to": "a", "data": {"sdp": "x"}})
+            assert a.receive_json() == {"type": "signal", "from": "b", "data": {"sdp": "x"}}
+        assert a.receive_json() == {"type": "left", "id": "b"}

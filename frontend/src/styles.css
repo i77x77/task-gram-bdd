@@ -282,3 +282,9 @@ textarea { resize: vertical; }
 .chat-form input::placeholder { color: var(--muted); }
 .chat-form button { border: 0; border-radius: 10px; width: 36px; height: 36px; padding: 0; background: var(--accent); color: var(--on-accent); border-color: var(--accent); box-shadow: none; }
 .chat-form button:disabled { background: var(--pill); color: var(--muted); border-color: transparent; }
+.call-row { display: flex; gap: 8px; }
+.call-btn { flex: 1; padding: 8px 12px; font-size: 13px; }
+.call-btn.off { color: var(--danger); }
+.call-btn.leave { flex: none; color: var(--danger); }
+.call-error { font-size: 12px; color: var(--danger); }
+.island:has(.call-btn.leave) { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28), 0 0 0 2px #2fb344; }
