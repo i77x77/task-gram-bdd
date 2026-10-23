@@ -20,50 +20,18 @@ function clientId(): string {
 
 const ME = clientId();
 
-/** Общий чат: все, у кого открыта доска, видят одни и те же сообщения и список «онлайн». */
+/** Общий чат в стиле Dynamic Island: компактная «таблетка» сверху, по клику раскрывается в чат. */
 export function ChatPanel({ userName }: { userName: string }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [online, setOnline] = useState<OnlineUser[]>([]);
   const [text, setText] = useState("");
   const [seen, setSeen] = useState(0); // id последнего прочитанного сообщения
+  const [peek, setPeek] = useState<ChatMessage | null>(null); // «выглянувшее» новое сообщение в свёрнутом виде
   const lastId = useRef(0);
+  const first = useRef(true);
   const list = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("chatPos") ?? "null");
-    } catch {
-      return null;
-    }
-  });
-  const panel = useRef<HTMLElement>(null);
-
-  const startDrag = (e: React.PointerEvent) => {
-    const el = panel.current;
-    if (!el || e.button !== 0) return;
-    const r = el.getBoundingClientRect();
-    const dx = e.clientX - r.left;
-    const dy = e.clientY - r.top;
-    let last = { x: r.left, y: r.top };
-    const move = (ev: PointerEvent) => {
-      last = {
-        x: Math.min(Math.max(ev.clientX - dx, 0), window.innerWidth - r.width),
-        y: Math.min(Math.max(ev.clientY - dy, 0), window.innerHeight - r.height),
-      };
-      setPos(last);
-    };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      try {
-        localStorage.setItem("chatPos", JSON.stringify(last));
-      } catch {
-        /* позиция просто не запомнится */
-      }
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  };
+  const island = useRef<HTMLElement>(null);
   const openRef = useRef(open);
   openRef.current = open;
 
@@ -72,10 +40,12 @@ export function ChatPanel({ userName }: { userName: string }) {
       const fresh = await api.chatMessages(lastId.current);
       // Опрос и отправка могут получить одно и то же сообщение одновременно — отбрасываем уже добавленные
       const added = fresh.filter((m) => m.id > lastId.current);
-      if (added.length) {
-        lastId.current = added[added.length - 1].id;
-        setMessages((m) => [...m, ...added]);
-      }
+      if (!added.length) return;
+      lastId.current = added[added.length - 1].id;
+      setMessages((m) => [...m, ...added]);
+      const incoming = added.filter((m) => m.client_id !== ME);
+      if (!first.current && !openRef.current && incoming.length) setPeek(incoming[incoming.length - 1]);
+      first.current = false;
     } catch {
       /* чат второстепенен: ошибки сети не показываем */
     }
@@ -95,11 +65,31 @@ export function ChatPanel({ userName }: { userName: string }) {
   }, [userName]);
 
   useEffect(() => {
+    if (!peek) return;
+    const t = setTimeout(() => setPeek(null), 4000);
+    return () => clearTimeout(t);
+  }, [peek]);
+
+  useEffect(() => {
     if (open && messages.length) {
       setSeen(messages[messages.length - 1].id);
       list.current?.scrollTo({ top: list.current.scrollHeight });
     }
   }, [open, messages]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (!island.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
 
   const unread = messages.filter((m) => m.id > seen && m.client_id !== ME).length;
 
@@ -115,54 +105,64 @@ export function ChatPanel({ userName }: { userName: string }) {
     }
   };
 
+  const state = open ? "open" : peek ? "peek" : "idle";
+
   return (
-    <>
-      <button className="chat-fab" onClick={() => setOpen(!open)} aria-label="Общий чат" aria-expanded={open}>
-        💬{unread > 0 && <span className="chat-badge">{unread}</span>}
+    <section ref={island} className={`island ${state}`} aria-label="Общий чат">
+      <button
+        className="island-bar"
+        onClick={() => {
+          setPeek(null);
+          setOpen(!open);
+        }}
+        aria-expanded={open}
+      >
+        <span className="island-icon">💬</span>
+        {state === "peek" && peek ? (
+          <span className="island-peek">
+            <b>{peek.author_name}</b> {peek.text}
+          </span>
+        ) : (
+          <span className="island-title">{open ? "Общий чат" : "Чат"}</span>
+        )}
+        <span className="island-online">
+          <i /> {online.length}
+        </span>
+        {!open && unread > 0 && <span className="chat-badge">{unread}</span>}
       </button>
-      {open && (
-        <section
-          ref={panel}
-          className="chat-panel"
-          aria-label="Общий чат"
-          style={pos ? { left: Math.min(pos.x, window.innerWidth - 120), top: Math.min(pos.y, window.innerHeight - 60), right: "auto", bottom: "auto" } : undefined}
-        >
-          <header className="chat-head" onPointerDown={startDrag} title="Перетащите, чтобы переместить">
-            <b>Общий чат</b>
-            <span className="muted">онлайн: {online.length}</span>
-          </header>
-          <div className="chat-online">
-            {online.map((u) => (
-              <span key={u.client_id} className={`chat-user${u.client_id === ME ? " me" : ""}`}>
-                {u.name}
-              </span>
-            ))}
-          </div>
-          <div className="chat-list" ref={list}>
-            {messages.length === 0 && <div className="muted">Сообщений пока нет</div>}
-            {messages.map((m) => (
-              <div key={m.id} className={`chat-msg${m.client_id === ME ? " mine" : ""}`}>
-                <div className="chat-meta">
-                  {m.author_name} · {new Date(m.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
-                </div>
-                <div className="chat-text">{m.text}</div>
+
+      <div className="island-body" aria-hidden={!open}>
+        <div className="chat-online">
+          {online.map((u) => (
+            <span key={u.client_id} className={`chat-user${u.client_id === ME ? " me" : ""}`}>
+              {u.name}
+            </span>
+          ))}
+        </div>
+        <div className="chat-list" ref={list}>
+          {messages.length === 0 && <div className="chat-empty">Сообщений пока нет</div>}
+          {messages.map((m) => (
+            <div key={m.id} className={`chat-msg${m.client_id === ME ? " mine" : ""}`}>
+              <div className="chat-meta">
+                {m.author_name} · {new Date(m.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
               </div>
-            ))}
-          </div>
-          <form
-            className="chat-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send();
-            }}
-          >
-            <input placeholder="Сообщение…" value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} />
-            <button className="primary" type="submit" disabled={!text.trim()}>
-              ➤
-            </button>
-          </form>
-        </section>
-      )}
-    </>
+              <div className="chat-text">{m.text}</div>
+            </div>
+          ))}
+        </div>
+        <form
+          className="chat-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
+          <input placeholder="Сообщение…" value={text} maxLength={2000} tabIndex={open ? 0 : -1} onChange={(e) => setText(e.target.value)} />
+          <button type="submit" disabled={!text.trim()} tabIndex={open ? 0 : -1}>
+            ➤
+          </button>
+        </form>
+      </div>
+    </section>
   );
 }
