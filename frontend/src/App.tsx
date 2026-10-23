@@ -39,6 +39,13 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [dragged, setDragged] = useState<Task | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [userName, setUserName] = useState(() => {
+    try {
+      return localStorage.getItem("userName") ?? "";
+    } catch {
+      return "";
+    }
+  });
   const dragging = useRef(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -151,6 +158,20 @@ export default function App() {
           ))}
         </select>
         <span className="spacer" />
+        <input
+          className="user-name"
+          placeholder="Ваше имя"
+          value={userName}
+          maxLength={100}
+          onChange={(e) => {
+            setUserName(e.target.value);
+            try {
+              localStorage.setItem("userName", e.target.value);
+            } catch {
+              /* localStorage недоступен */
+            }
+          }}
+        />
         <BackgroundPicker />
         <ThemeToggle />
       </header>
@@ -178,7 +199,7 @@ export default function App() {
                 key={c.id}
                 column={c}
                 onOpen={(t) => setOpenId(t.id)}
-                onAdd={(columnId, title) => run(() => api.createTask({ title, column_id: columnId }))}
+                onAdd={(columnId, title) => run(() => api.createTask({ title, column_id: columnId, author_name: userName || undefined }))}
                 onRename={(id, name) => run(() => api.renameColumn(id, name))}
               />
             ))}

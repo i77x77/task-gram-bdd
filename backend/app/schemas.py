@@ -109,6 +109,7 @@ class TaskOut(BaseModel):
     chat_id: int | None
     message_id: int | None
     author: AuthorOut | None
+    author_name: str | None
     sent_at: datetime | None
     edited: bool
     tags: list[str]
@@ -130,6 +131,7 @@ class TaskCreate(BaseModel):
     priority: Priority = "normal"
     due_at: datetime | None = None
     tags: list[str] = []
+    author_name: str | None = Field(default=None, max_length=100)
 
 
 class TaskUpdate(BaseModel):

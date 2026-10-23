@@ -25,6 +25,7 @@ export interface Task {
   due_at: string | null;
   source: string;
   author: Author | null;
+  author_name: string | null;
   sent_at: string | null;
   edited: boolean;
   tags: string[];
@@ -60,4 +61,5 @@ export interface TaskPatch {
 export interface TaskCreate extends TaskPatch {
   title: string;
   column_id?: number;
+  author_name?: string;
 }

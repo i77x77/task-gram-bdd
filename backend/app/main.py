@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
 from app import models  # noqa: F401  (регистрация моделей в metadata)
@@ -15,6 +16,10 @@ from app.services.tasks import Conflict, NotFound, seed_columns
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(engine)
+    # create_all не добавляет колонки в существующую таблицу
+    if "author_name" not in {c["name"] for c in inspect(engine).get_columns("tasks")}:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN author_name VARCHAR(100)"))
     with SessionLocal() as db:
         seed_columns(db, get_settings().default_columns)
     yield

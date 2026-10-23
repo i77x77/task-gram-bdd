@@ -59,6 +59,7 @@ def create_task(body: TaskCreate, db: Session = Depends(get_db)):
         priority=body.priority,
         due_at=body.due_at,
         source="manual",
+        author_name=(body.author_name or "").strip() or None,
         tags=svc.resolve_tags(db, body.tags),
     )
     db.add(task)

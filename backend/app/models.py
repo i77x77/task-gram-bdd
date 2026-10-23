@@ -80,6 +80,7 @@ class Task(Base):
     message_id: Mapped[int | None] = mapped_column(BigInteger)
     part: Mapped[int] = mapped_column(default=0)  # номер задачи внутри сообщения (одно сообщение -> несколько задач)
     author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    author_name: Mapped[str | None] = mapped_column(String(100))  # имя автора ручной задачи
     sent_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     edited: Mapped[bool] = mapped_column(default=False)
     entities: Mapped[dict | None] = mapped_column(JSON)

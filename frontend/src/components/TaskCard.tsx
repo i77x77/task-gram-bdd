@@ -9,7 +9,7 @@ export function dueLabel(iso: string) {
 }
 
 export function TaskCardView({ task, overlay }: { task: Task; overlay?: boolean }) {
-  const author = task.source === "telegram" ? (task.author?.username ? `@${task.author.username}` : task.author?.full_name) : null;
+  const author = task.source === "telegram" ? (task.author?.username ? `@${task.author.username}` : task.author?.full_name) : task.author_name;
   const overdue = task.due_at !== null && new Date(task.due_at) < new Date();
   return (
     <div className={`card${overlay ? " overlay" : ""}`}>

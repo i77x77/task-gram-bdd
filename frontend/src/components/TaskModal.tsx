@@ -88,6 +88,7 @@ export function TaskModal({ task, onSave, onDelete, onClose }: Props) {
               {task.edited && " (изменено)"} ·{" "}
             </>
           )}
+          {task.source !== "telegram" && task.author_name && <>{task.author_name} · </>}
           создана {new Date(task.created_at).toLocaleString("ru-RU")}
         </div>
 

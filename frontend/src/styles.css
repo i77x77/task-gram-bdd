@@ -6,12 +6,12 @@
   --bg-c: #b5365f;
   --bg-d: #0b7285;
   --scrim: rgba(8, 12, 28, 0.45);
-  --glass: rgba(255, 255, 255, 0.72);
-  --glass-strong: rgba(255, 255, 255, 0.8);
-  --glass-hover: rgba(255, 255, 255, 0.92);
+  --glass: rgba(255, 255, 255, 0.5);
+  --glass-strong: rgba(255, 255, 255, 0.62);
+  --glass-hover: rgba(255, 255, 255, 0.72);
   --surface: var(--glass);
-  --col: rgba(255, 255, 255, 0.38);
-  --card: rgba(255, 255, 255, 0.78);
+  --col: rgba(255, 255, 255, 0.2);
+  --card: rgba(255, 255, 255, 0.55);
   --pill: rgba(0, 0, 0, 0.08);
   --plus-bg: rgba(0, 0, 0, 0.1);
   --plus: #0a4fc4;
@@ -33,12 +33,12 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --scrim: rgba(0, 0, 0, 0.35);
-    --glass: rgba(24, 28, 44, 0.72);
-    --glass-strong: rgba(24, 28, 44, 0.8);
-    --glass-hover: rgba(48, 54, 80, 0.9);
-    --col: rgba(20, 24, 36, 0.55);
-    --card: rgba(48, 54, 76, 0.75);
+    --scrim: rgba(28, 16, 8, 0.5);
+    --glass: rgba(46, 30, 20, 0.72);
+    --glass-strong: rgba(46, 30, 20, 0.8);
+    --glass-hover: rgba(84, 56, 38, 0.9);
+    --col: rgba(40, 26, 17, 0.55);
+    --card: rgba(80, 54, 38, 0.75);
     --pill: rgba(255, 255, 255, 0.14);
     --plus-bg: rgba(255, 255, 255, 0.16);
     --plus: #9ec1ff;
@@ -56,12 +56,12 @@
   }
 }
 :root[data-theme="dark"] {
-  --scrim: rgba(0, 0, 0, 0.35);
-  --glass: rgba(24, 28, 44, 0.72);
-  --glass-strong: rgba(24, 28, 44, 0.8);
-  --glass-hover: rgba(48, 54, 80, 0.9);
-  --col: rgba(20, 24, 36, 0.55);
-  --card: rgba(48, 54, 76, 0.75);
+  --scrim: rgba(28, 16, 8, 0.5);
+  --glass: rgba(46, 30, 20, 0.72);
+  --glass-strong: rgba(46, 30, 20, 0.8);
+  --glass-hover: rgba(84, 56, 38, 0.9);
+  --col: rgba(40, 26, 17, 0.55);
+  --card: rgba(80, 54, 38, 0.75);
   --pill: rgba(255, 255, 255, 0.14);
   --plus-bg: rgba(255, 255, 255, 0.16);
   --plus: #9ec1ff;
@@ -154,7 +154,7 @@ textarea { resize: vertical; }
 .icon { border: 0; background: transparent; box-shadow: none; color: var(--muted); padding: 2px 6px; opacity: 0; }
 .column:hover .icon, .icon:focus-visible { opacity: 1; }
 .icon:hover { background: transparent; color: var(--danger); }
-.add-circle { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--plus-bg); color: var(--plus); font-size: 20px; line-height: 1; box-shadow: none; }
+.add-circle { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--plus-bg); color: var(--plus); font-size: 20px; line-height: 1; box-shadow: none; display: grid; place-items: center; }
 .add-circle:hover { background: var(--plus-bg); filter: brightness(1.12); }
 .column-body { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 40px; padding: 2px; }
 .add-form { margin-bottom: 10px; }
@@ -197,3 +197,4 @@ textarea { resize: vertical; }
 .muted { color: var(--muted); font-size: 12px; }
 .actions { display: flex; gap: 8px; }
 .spacer { flex: 1; }
+.user-name { width: 150px; }
