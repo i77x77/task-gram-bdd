@@ -82,5 +82,4 @@ export interface ChatMessage {
 export interface OnlineUser {
   client_id: string;
   name: string;
-  in_call: boolean;
 }

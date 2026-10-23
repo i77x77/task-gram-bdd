@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.call import participants
 from app.database import get_db
 from app.models import ChatMessage
 from app.schemas import ChatMessageCreate, ChatMessageOut, Heartbeat, OnlineUser
@@ -23,7 +22,7 @@ def _online() -> list[OnlineUser]:
     for cid in [c for c, (_, seen) in _presence.items() if now - seen > ONLINE_TTL]:
         del _presence[cid]
     users = sorted(_presence.items(), key=lambda kv: kv[1][0].casefold())
-    return [OnlineUser(client_id=cid, name=name, in_call=cid in participants) for cid, (name, _) in users]
+    return [OnlineUser(client_id=cid, name=name) for cid, (name, _) in users]
 
 
 @router.get("/messages", response_model=list[ChatMessageOut])

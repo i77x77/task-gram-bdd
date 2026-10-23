@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { useCall, type CallPeer } from "./useCall";
 import type { ChatMessage, OnlineUser } from "../api/types";
 
 const MSG_POLL_MS = 3_000;
@@ -58,15 +57,6 @@ function clientId(): string {
 
 const ME = clientId();
 
-/** Воспроизводит звук собеседника; элемент живёт, даже когда остров свёрнут. */
-function PeerAudio({ peer }: { peer: CallPeer }) {
-  const ref = useRef<HTMLAudioElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.srcObject = peer.stream;
-  }, [peer.stream]);
-  return <audio ref={ref} autoPlay />;
-}
-
 /** Общий чат в стиле Dynamic Island: компактная «таблетка» сверху, по клику раскрывается в чат. */
 export function ChatPanel({ userName }: { userName: string }) {
   const [open, setOpen] = useState(false);
@@ -75,7 +65,6 @@ export function ChatPanel({ userName }: { userName: string }) {
   const [text, setText] = useState("");
   const [seen, setSeen] = useState(0); // id последнего прочитанного сообщения
   const [peek, setPeek] = useState<ChatMessage | null>(null); // «выглянувшее» новое сообщение в свёрнутом виде
-  const call = useCall(ME, userName);
   const lastId = useRef(0);
   const first = useRef(true);
   const list = useRef<HTMLDivElement>(null);
@@ -165,13 +154,13 @@ export function ChatPanel({ userName }: { userName: string }) {
         }}
         aria-expanded={open}
       >
-        <span className="island-icon">{call.joined ? "🎧" : "💬"}</span>
+        <span className="island-icon">💬</span>
         {state === "peek" && peek ? (
           <span className="island-peek">
             <b>{peek.author_name}</b> {peek.text}
           </span>
         ) : (
-          <span className="island-title">{open ? "Общий чат" : call.joined ? "Созвон" : "Чат"}</span>
+          <span className="island-title">{open ? "Общий чат" : "Чат"}</span>
         )}
         <span className="island-online">
           <i /> {online.length}
@@ -179,30 +168,10 @@ export function ChatPanel({ userName }: { userName: string }) {
         {!open && unread > 0 && <span className="chat-badge">{unread}</span>}
       </button>
 
-      {call.peers.map((p) => p.stream && <PeerAudio key={p.id} peer={p} />)}
-
       <div className="island-body" aria-hidden={!open}>
-        <div className="call-row">
-          {call.joined ? (
-            <>
-              <button className={`call-btn${call.muted ? " off" : ""}`} onClick={call.toggleMute} tabIndex={open ? 0 : -1}>
-                {call.muted ? "🔇 Микрофон выкл." : "🎤 Микрофон вкл."}
-              </button>
-              <button className="call-btn leave" onClick={call.leave} tabIndex={open ? 0 : -1}>
-                📞 Выйти
-              </button>
-            </>
-          ) : (
-            <button className="call-btn" onClick={call.join} tabIndex={open ? 0 : -1}>
-              📞 Присоединиться к созвону
-            </button>
-          )}
-        </div>
-        {call.error && <div className="call-error">{call.error}</div>}
         <div className="chat-online">
           {online.map((u) => (
             <span key={u.client_id} className={`chat-user${u.client_id === ME ? " me" : ""}`}>
-              {u.in_call && "🎧 "}
               {u.name}
             </span>
           ))}
