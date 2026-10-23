@@ -124,7 +124,7 @@ def test_ingest_column_by_name_creates_missing(client):
 
 def test_boards_are_isolated(client):
     boards = client.get("/api/v1/boards").json()
-    assert [b["name"] for b in boards] == ["ЕПУТС", "КИПАРИСС", "АИС ОМБУ"]
+    assert [b["name"] for b in boards] == ["ЕПУТС", "КИПАРИСС", "АИС ОМБУ", "Презентации"]
     kip = boards[1]["id"]
 
     board = client.get(f"/api/v1/board?board_id={kip}").json()

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 from datetime import timezone
 
 from aiogram import Bot, Dispatcher
@@ -122,14 +123,37 @@ async def start(message: Message):
     await message.answer("Привет! Отправь мне задачу текстом — я её запишу.")
 
 
-async def fetch_columns() -> list[str]:
+DEFAULT_BOARD = "ЕПУТС"
+# Ключевые слова (начало слова, без учёта регистра) -> доска проекта
+BOARD_KEYWORDS = {
+    "ЕПУТС": ("епутс",),
+    "КИПАРИСС": ("кипарис",),
+    "АИС ОМБУ": ("омбу", "аис"),
+    "Презентации": ("презентац", "слайд"),
+}
+
+
+def pick_board(text: str) -> str:
+    """Доска по ключевому слову в тексте (при нескольких — по самому раннему); не нашли — ЕПУТС."""
+    found = []
+    for board, stems in BOARD_KEYWORDS.items():
+        for stem in stems:
+            m = re.search(rf"(?<!\w){stem}", text, re.IGNORECASE)
+            if m:
+                found.append((m.start(), board))
+    return min(found)[1] if found else DEFAULT_BOARD
+
+
+async def fetch_columns(board: str) -> list[str]:
     """Имена колонок доски, чтобы LLM выбирала из существующих. При ошибке — пусто."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{BACKEND_URL}/api/v1/columns")
+            boards = (await client.get(f"{BACKEND_URL}/api/v1/boards")).json()
+            board_id = next(b["id"] for b in boards if b["name"] == board)
+            r = await client.get(f"{BACKEND_URL}/api/v1/columns", params={"board_id": board_id})
         r.raise_for_status()
         return [c["name"] for c in r.json()]
-    except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
+    except (httpx.HTTPError, KeyError, TypeError, ValueError, StopIteration) as e:
         logging.warning("fetch columns failed: %s", e)
         return []
 
@@ -137,9 +161,10 @@ async def fetch_columns() -> list[str]:
 async def build_parts(message: Message) -> list[dict]:
     """Базовый payload + разбор текста через LLM. Пустой список — в сообщении нет задач."""
     base = build_task(message)
+    base["board"] = pick_board(base["text"])
     if not base["text"].strip():  # только вложение — разбирать нечего
         return [base]
-    parsed = await extract_tasks(base["text"], await fetch_columns())
+    parsed = await extract_tasks(base["text"], await fetch_columns(base["board"]))
     if parsed is None:  # LLM недоступна — не теряем сообщение, сохраняем как есть
         return [base]
     return [

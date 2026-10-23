@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/taskgram.db"
     ingest_api_key: str = ""
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
-    default_boards: tuple[str, ...] = ("ЕПУТС", "КИПАРИСС", "АИС ОМБУ")
+    default_boards: tuple[str, ...] = ("ЕПУТС", "КИПАРИСС", "АИС ОМБУ", "Презентации")
     default_columns: tuple[str, ...] = ("To Do", "In Progress", "Done")
 
     @property
