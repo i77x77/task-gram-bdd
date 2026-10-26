@@ -244,6 +244,15 @@ export default function App() {
                 onOpen={(t) => setOpenId(t.id)}
                 onAdd={(columnId, title) => run(() => api.createTask({ title, column_id: columnId, author_name: userName || undefined }))}
                 onRename={(id, name) => run(() => api.renameColumn(id, name))}
+                onDelete={(col) => {
+                  const n = col.tasks.length;
+                  const msg = n ? `Удалить колонку «${col.name}» вместе с задачами (${n})?` : `Удалить колонку «${col.name}»?`;
+                  if (!confirm(msg)) return;
+                  void run(async () => {
+                    await Promise.all(col.tasks.map((t) => api.deleteTask(t.id)));
+                    await api.deleteColumn(col.id);
+                  });
+                }}
               />
             ))}
           </main>

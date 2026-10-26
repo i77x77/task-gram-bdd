@@ -1,6 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useState } from "react";
+import { isAdmin } from "../api/client";
 import type { Column, Task } from "../api/types";
 import { TaskCard } from "./TaskCard";
 
@@ -9,9 +10,10 @@ interface Props {
   onOpen: (t: Task) => void;
   onAdd: (columnId: number, title: string) => Promise<void>;
   onRename: (columnId: number, name: string) => void;
+  onDelete: (column: Column) => void;
 }
 
-export function ColumnView({ column, onOpen, onAdd, onRename }: Props) {
+export function ColumnView({ column, onOpen, onAdd, onRename, onDelete }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `col-${column.id}` });
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
@@ -40,6 +42,11 @@ export function ColumnView({ column, onOpen, onAdd, onRename }: Props) {
         <button className="add-circle" title="Добавить задачу" aria-label="Добавить задачу" onClick={() => setAdding(true)}>
           +
         </button>
+        {isAdmin() && (
+          <button className="add-circle danger" title="Удалить колонку" aria-label="Удалить колонку" onClick={() => onDelete(column)}>
+            ✕
+          </button>
+        )}
       </header>
 
       {adding && (

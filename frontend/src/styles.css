@@ -315,3 +315,4 @@ textarea { resize: vertical; }
   .notes-body { flex-direction: column; }
   .notes-list { width: auto; max-height: 120px; }
 }
+.add-circle.danger { font-size: 14px; }
