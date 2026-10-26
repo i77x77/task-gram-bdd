@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     sheet_poll_seconds: int = 60
     sheet_board: str = "Презентации"
     sheet_column: str = "To Do"
+    sheet_done_column: str = "Done"  # сюда уходят задачи из таблицы, когда дата выступления прошла
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
     default_boards: tuple[str, ...] = ("ЕПУТС", "КИПАРИСС", "АИС ОМБУ", "Презентации")
     default_columns: tuple[str, ...] = ("To Do", "In Progress", "Done", "Backlog")

@@ -8,6 +8,7 @@ import re
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -92,6 +93,28 @@ def import_rows(db: Session, rows: list[tuple[str, str, datetime | None]]) -> in
     return created
 
 
+def archive_past(db: Session) -> int:
+    """Задачи из таблицы, которые ещё лежат в To Do и у которых дата прошла, переносит в Done.
+    Задачи, которые пользователь уже сам переложил в другую колонку, не трогаем."""
+    settings = get_settings()
+    board = svc.get_board_by_name(db, settings.sheet_board)
+    todo = svc.get_or_create_column(db, settings.sheet_column, board.id)
+    done = svc.get_or_create_column(db, settings.sheet_done_column, board.id)
+    past = db.scalars(
+        select(Task)
+        .where(Task.column_id == todo.id, Task.source == "sheet", Task.due_at.is_not(None), Task.due_at < datetime.now(timezone.utc))
+        .order_by(Task.due_at)
+    ).all()
+    for t in past:
+        t.column_id = done.id
+        t.position = svc.next_position(db, done.id)
+        db.flush()
+    if past:
+        svc._renumber(db, todo.id)
+    db.commit()
+    return len(past)
+
+
 def _fetch(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "taskgram"})
     with urllib.request.urlopen(req, timeout=20) as resp:
@@ -103,7 +126,9 @@ def sync_once() -> int:
     if text.lstrip().lower().startswith(("<!doctype", "<html")):
         raise RuntimeError("таблица недоступна: откройте доступ «у кого есть ссылка — читатель»")
     with SessionLocal() as db:
-        return import_rows(db, parse_rows(text))
+        created = import_rows(db, parse_rows(text))
+        archive_past(db)
+        return created
 
 
 async def sync_loop() -> None:

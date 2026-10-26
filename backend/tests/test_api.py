@@ -297,3 +297,17 @@ def test_sheet_import(client):
     board = next(b for b in client.get("/api/v1/boards").json() if b["name"] == "Презентации")
     col = next(c for c in client.get(f"/api/v1/board?board_id={board['id']}").json()["columns"] if c["name"] == "To Do")
     assert [t["title"] for t in col["tasks"]] == ["Доклад про ИИ", "Круглый стол", "Без даты"]
+
+
+def test_sheet_archive_past(client):
+    from app.main import SessionLocal as TestSession
+    from app.services import sheet
+
+    rows = [("Прошлая", "01.01.2020", sheet.parse_date("01.01.2020")), ("Будущая", "01.01.2099", sheet.parse_date("01.01.2099"))]
+    with TestSession() as db:
+        sheet.import_rows(db, rows)
+        assert sheet.archive_past(db) == 1
+        assert sheet.archive_past(db) == 0
+    board = next(b for b in client.get("/api/v1/boards").json() if b["name"] == "Презентации")
+    cols = {c["name"]: [t["title"] for t in c["tasks"]] for c in client.get(f"/api/v1/board?board_id={board['id']}").json()["columns"]}
+    assert cols["Done"] == ["Прошлая"] and cols["To Do"] == ["Будущая"]
