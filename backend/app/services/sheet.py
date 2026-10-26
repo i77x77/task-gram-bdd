@@ -53,13 +53,14 @@ def parse_date(raw: str) -> datetime | None:
         return None
 
 
-def parse_rows(text: str) -> list[tuple[str, str, datetime | None, str]]:
+def parse_rows(text: str, links: dict[int, str] | None = None) -> list[tuple[str, str, datetime | None, str]]:
     rows = list(csv.reader(io.StringIO(text)))
     out = []
     for i, row in enumerate(rows):
         title = row[0].strip() if row else ""
         raw = row[1].strip() if len(row) > 1 else ""
         link = row[2].strip() if len(row) > 2 else ""
+        link = (links or {}).get(i) or link  # CSV отдаёт только видимый текст ячейки, а настоящий URL лежит в гиперссылке
         due = parse_date(raw)
         if not title or (i == 0 and due is None):  # пустая строка или шапка таблицы
             continue
@@ -71,8 +72,11 @@ def row_key(title: str, raw_date: str) -> str:
     return hashlib.sha1(f"{title.casefold()}|{raw_date}".encode()).hexdigest()
 
 
+LINK_PREFIX = "Презентация: "
+
+
 def _link_line(link: str) -> str:
-    return f"Презентация: {link}"
+    return f"{LINK_PREFIX}{link}"
 
 
 def import_rows(db: Session, rows: list[tuple[str, str, datetime | None, str]]) -> int:
@@ -91,8 +95,9 @@ def import_rows(db: Session, rows: list[tuple[str, str, datetime | None, str]]) 
                 if due and task.due_at is None:
                     task.due_at = due
                     task.description = task.description.replace(f"Дата выступления: {raw}", "").strip()
-                if link and link not in task.description:
-                    task.description = f"{task.description}\n{_link_line(link)}".strip()
+                if link and _link_line(link) not in task.description.splitlines():
+                    kept = [ln for ln in task.description.splitlines() if not ln.startswith(LINK_PREFIX)]
+                    task.description = "\n".join([*kept, _link_line(link)]).strip()
             continue
         known.add(key)
         task = Task(
@@ -142,12 +147,37 @@ def _fetch(url: str) -> str:
         return resp.read().decode("utf-8-sig")
 
 
+def parse_xlsx_links(data: bytes) -> dict[int, str]:
+    """Гиперссылки из 3-го столбца: {индекс строки с нуля: URL}."""
+    from openpyxl import load_workbook
+
+    ws = load_workbook(io.BytesIO(data), read_only=False).active
+    out = {}
+    for i, row in enumerate(ws.iter_rows(min_col=3, max_col=3)):
+        cell = row[0]
+        target = cell.hyperlink.target if cell.hyperlink and cell.hyperlink.target else None
+        if target:
+            out[i] = target
+    return out
+
+
+def fetch_links(url: str) -> dict[int, str]:
+    try:
+        req = urllib.request.Request(url.replace("format=csv", "format=xlsx"), headers={"User-Agent": "taskgram"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return parse_xlsx_links(resp.read())
+    except Exception as e:  # noqa: BLE001 — без гиперссылок остаётся текст ячейки
+        log.warning("sheet: не удалось прочитать гиперссылки: %s", e)
+        return {}
+
+
 def sync_once() -> int:
-    text = _fetch(csv_url(get_settings().sheet_url))
+    url = csv_url(get_settings().sheet_url)
+    text = _fetch(url)
     if text.lstrip().lower().startswith(("<!doctype", "<html")):
         raise RuntimeError("таблица недоступна: откройте доступ «у кого есть ссылка — читатель»")
     with SessionLocal() as db:
-        created = import_rows(db, parse_rows(text))
+        created = import_rows(db, parse_rows(text, fetch_links(url)))
         archive_past(db)
         return created
 

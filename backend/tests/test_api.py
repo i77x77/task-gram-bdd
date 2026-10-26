@@ -340,3 +340,30 @@ def test_sheet_link_from_third_column(client):
         sheet.import_rows(db, sheet.parse_rows(text))
         sheet.import_rows(db, sheet.parse_rows(text))
         assert db.query(Task).filter_by(title="Доклад").one().description == "Презентация: https://x.ru/p"
+
+
+def test_sheet_hyperlink_replaces_cell_text(client):
+    import io
+
+    from openpyxl import Workbook
+
+    from app.main import SessionLocal as TestSession
+    from app.models import Task
+    from app.services import sheet
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Название", "Дата", "Ссылка"])
+    ws.append(["Доклад", "16.11", "Слайды"])
+    ws["C2"].hyperlink = "https://x.ru/slides"
+    buf = io.BytesIO()
+    wb.save(buf)
+    links = sheet.parse_xlsx_links(buf.getvalue())
+    assert links == {1: "https://x.ru/slides"}
+
+    csv_text = "Название,Дата,Ссылка\nДоклад,16.11,Слайды\n"
+    with TestSession() as db:
+        sheet.import_rows(db, sheet.parse_rows(csv_text))  # как раньше: в описании только текст ячейки
+        assert db.query(Task).one().description == "Презентация: Слайды"
+        sheet.import_rows(db, sheet.parse_rows(csv_text, links))
+        assert db.query(Task).one().description == "Презентация: https://x.ru/slides"
