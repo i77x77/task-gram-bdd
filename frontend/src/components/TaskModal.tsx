@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isAdmin } from "../api/client";
 import type { Priority, Task, TaskPatch } from "../api/types";
 
 interface Props {
@@ -93,17 +94,19 @@ export function TaskModal({ task, onSave, onDelete, onClose }: Props) {
         </div>
 
         <div className="actions">
-          <button
-            className="danger"
-            onClick={async () => {
-              if (confirm("Удалить задачу?")) {
-                await onDelete(task.id);
-                onClose();
-              }
-            }}
-          >
-            Удалить
-          </button>
+          {isAdmin() && (
+            <button
+              className="danger"
+              onClick={async () => {
+                if (confirm("Удалить задачу?")) {
+                  await onDelete(task.id);
+                  onClose();
+                }
+              }}
+            >
+              Удалить
+            </button>
+          )}
           <span className="spacer" />
           <button onClick={onClose}>Отмена</button>
           <button className="primary" disabled={busy} onClick={save}>

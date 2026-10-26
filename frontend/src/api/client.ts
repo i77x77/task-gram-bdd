@@ -12,6 +12,15 @@ export const getPassword = (): string => {
   }
 };
 
+/** Админ-режим включается вручную: localStorage.setItem("isAdmin", "true"). Это только скрытие кнопок в UI, не защита API. */
+export const isAdmin = (): boolean => {
+  try {
+    return localStorage.getItem("isAdmin") === "true";
+  } catch {
+    return false;
+  }
+};
+
 export const setPassword = (value: string) => {
   try {
     if (value) localStorage.setItem(PASSWORD_KEY, value);
