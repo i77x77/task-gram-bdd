@@ -282,7 +282,7 @@ def test_sheet_import(client):
 
     text = "Название,Дата выступления\nДоклад про ИИ,25.12.2026\nКруглый стол,2026-11-03 14:30\n,\nБез даты,скоро\n"
     rows = sheet.parse_rows(text)
-    assert [(t, d and d.isoformat()) for t, _, d in rows] == [
+    assert [(t, d and d.isoformat()) for t, _, d, _ in rows] == [
         ("Доклад про ИИ", "2026-12-25T12:00:00+00:00"),
         ("Круглый стол", "2026-11-03T14:30:00+00:00"),
         ("Без даты", None),
@@ -303,7 +303,7 @@ def test_sheet_archive_past(client):
     from app.main import SessionLocal as TestSession
     from app.services import sheet
 
-    rows = [("Прошлая", "01.01.2020", sheet.parse_date("01.01.2020")), ("Будущая", "01.01.2099", sheet.parse_date("01.01.2099"))]
+    rows = [("Прошлая", "01.01.2020", sheet.parse_date("01.01.2020"), ""), ("Будущая", "01.01.2099", sheet.parse_date("01.01.2099"), "")]
     with TestSession() as db:
         sheet.import_rows(db, rows)
         assert sheet.archive_past(db) == 1
@@ -320,8 +320,23 @@ def test_sheet_date_without_year_and_backfill(client):
     assert sheet.parse_date("16.11").isoformat() == "2026-11-16T12:00:00+00:00"
     assert sheet.parse_date("16.11 18:30").isoformat() == "2026-11-16T18:30:00+00:00"
     with TestSession() as db:
-        sheet.import_rows(db, [("Доклад", "16.11", None)])  # как до исправления: дата не распознана
+        sheet.import_rows(db, [("Доклад", "16.11", None, "")])  # как до исправления: дата не распознана
         sheet.import_rows(db, sheet.parse_rows("Название,Дата\nДоклад,16.11\n"))
         from app.models import Task
         t = db.query(Task).filter_by(title="Доклад").one()
         assert t.due_at is not None and t.description == ""
+
+
+def test_sheet_link_from_third_column(client):
+    from app.main import SessionLocal as TestSession
+    from app.models import Task
+    from app.services import sheet
+
+    with TestSession() as db:
+        sheet.import_rows(db, sheet.parse_rows("Название,Дата,Ссылка\nДоклад,16.11,\n"))
+        assert db.query(Task).filter_by(title="Доклад").one().description == ""
+        # ссылку добавили в таблицу позже — подтянется к уже созданной задаче, без дублей
+        text = "Название,Дата,Ссылка\nДоклад,16.11,https://x.ru/p\n"
+        sheet.import_rows(db, sheet.parse_rows(text))
+        sheet.import_rows(db, sheet.parse_rows(text))
+        assert db.query(Task).filter_by(title="Доклад").one().description == "Презентация: https://x.ru/p"

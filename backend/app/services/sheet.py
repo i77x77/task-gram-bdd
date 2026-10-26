@@ -53,16 +53,17 @@ def parse_date(raw: str) -> datetime | None:
         return None
 
 
-def parse_rows(text: str) -> list[tuple[str, str, datetime | None]]:
+def parse_rows(text: str) -> list[tuple[str, str, datetime | None, str]]:
     rows = list(csv.reader(io.StringIO(text)))
     out = []
     for i, row in enumerate(rows):
         title = row[0].strip() if row else ""
         raw = row[1].strip() if len(row) > 1 else ""
+        link = row[2].strip() if len(row) > 2 else ""
         due = parse_date(raw)
         if not title or (i == 0 and due is None):  # пустая строка или шапка таблицы
             continue
-        out.append((title[:200], raw, due))
+        out.append((title[:200], raw, due, link))
     return out
 
 
@@ -70,26 +71,35 @@ def row_key(title: str, raw_date: str) -> str:
     return hashlib.sha1(f"{title.casefold()}|{raw_date}".encode()).hexdigest()
 
 
-def import_rows(db: Session, rows: list[tuple[str, str, datetime | None]]) -> int:
+def _link_line(link: str) -> str:
+    return f"Презентация: {link}"
+
+
+def import_rows(db: Session, rows: list[tuple[str, str, datetime | None, str]]) -> int:
     settings = get_settings()
     board = svc.get_board_by_name(db, settings.sheet_board)
     column = svc.get_or_create_column(db, settings.sheet_column, board.id)
     known = {k for (k,) in db.query(SheetRow.key)}
     created = 0
-    for title, raw, due in rows:
+    for title, raw, due, link in rows:
         key = row_key(title, raw)
         if key in known:
-            if due:  # раньше дата не распозналась (например, 16.11 без года) — дозаполняем срок
-                row = db.get(SheetRow, key)
-                task = row and row.task_id and db.get(Task, row.task_id)
-                if task and task.source == "sheet" and task.due_at is None:
+            # дозаполняем то, что при первом импорте не распозналось или отсутствовало (дата без года, ссылка в 3-м столбце)
+            row = db.get(SheetRow, key)
+            task = row and row.task_id and db.get(Task, row.task_id)
+            if task and task.source == "sheet":
+                if due and task.due_at is None:
                     task.due_at = due
-                    task.description = ""
+                    task.description = task.description.replace(f"Дата выступления: {raw}", "").strip()
+                if link and link not in task.description:
+                    task.description = f"{task.description}\n{_link_line(link)}".strip()
             continue
         known.add(key)
         task = Task(
             title=title,
-            description="" if due else f"Дата выступления: {raw}" if raw else "",
+            description="\n".join(
+                filter(None, [None if due or not raw else f"Дата выступления: {raw}", _link_line(link) if link else None])
+            ),
             column_id=column.id,
             position=svc.next_position(db, column.id),
             due_at=due,
