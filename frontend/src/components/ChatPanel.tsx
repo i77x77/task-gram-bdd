@@ -58,6 +58,29 @@ function clientId(): string {
 
 const ME = clientId();
 
+/** Разрешение на уведомления просим по жесту пользователя (отправка сообщения / клик по чату): иначе браузеры его блокируют. */
+function askNotifyPermission() {
+  if ("Notification" in window && Notification.permission === "default") {
+    void Notification.requestPermission().catch(() => {});
+  }
+}
+
+/** Браузерное уведомление о новом сообщении, только когда вкладка скрыта или не в фокусе. */
+function notifyMessage(m: ChatMessage, onClick: () => void) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  if (!document.hidden && document.hasFocus()) return;
+  try {
+    const n = new Notification(m.author_name, { body: m.text, tag: "taskgram-chat", icon: "/favicon.svg" });
+    n.onclick = () => {
+      window.focus();
+      onClick();
+      n.close();
+    };
+  } catch {
+    /* например, Android Chrome требует ServiceWorker: молча пропускаем */
+  }
+}
+
 /** Воспроизводит звук собеседника; элемент живёт, даже когда остров свёрнут. */
 function PeerAudio({ peer }: { peer: CallPeer }) {
   const ref = useRef<HTMLAudioElement>(null);
@@ -99,7 +122,11 @@ export function ChatPanel({ userName }: { userName: string }) {
       lastId.current = added[added.length - 1].id;
       setMessages((m) => [...m, ...added]);
       const incoming = added.filter((m) => m.client_id !== ME);
-      if (!first.current && !openRef.current && incoming.length) setPeek(incoming[incoming.length - 1]);
+      if (!first.current && incoming.length) {
+        const last = incoming[incoming.length - 1];
+        if (!openRef.current) setPeek(last);
+        notifyMessage(last, () => setOpen(true));
+      }
       first.current = false;
     } catch {
       /* чат второстепенен: ошибки сети не показываем */
@@ -152,6 +179,7 @@ export function ChatPanel({ userName }: { userName: string }) {
     const t = text.trim();
     if (!t) return;
     setText("");
+    askNotifyPermission();
     try {
       await api.sendChatMessage(ME, userName, t);
       await poll();
@@ -169,6 +197,7 @@ export function ChatPanel({ userName }: { userName: string }) {
         onClick={() => {
           setPeek(null);
           setOpen(!open);
+          askNotifyPermission();
         }}
         aria-expanded={open}
       >
