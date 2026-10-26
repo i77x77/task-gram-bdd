@@ -1,25 +1,7 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { Note } from "../api/types";
-
-const URL_RE = /(https?:\/\/[^\s<>"']+)/g;
-
-/** Текст заметки с кликабельными ссылками (без dangerouslySetInnerHTML). */
-function Linkified({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(URL_RE).map((part, i) =>
-        i % 2 ? (
-          <a key={i} href={part} target="_blank" rel="noopener noreferrer">
-            {part}
-          </a>
-        ) : (
-          <Fragment key={i}>{part}</Fragment>
-        ),
-      )}
-    </>
-  );
-}
+import { Linkified } from "./Linkified";
 
 const preview = (n: Note) => n.title || n.text.split("\n")[0] || "Без названия";
 

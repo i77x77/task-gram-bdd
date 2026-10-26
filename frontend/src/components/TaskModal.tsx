@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Linkified, hasUrl } from "./Linkified";
 import { isAdmin } from "../api/client";
 import type { Priority, Task, TaskPatch } from "../api/types";
 
@@ -22,6 +23,7 @@ export function TaskModal({ task, onSave, onDelete, onClose }: Props) {
   const [priority, setPriority] = useState<Priority>(task.priority);
   const [due, setDue] = useState(toLocalInput(task.due_at));
   const [tags, setTags] = useState(task.tags.join(", "));
+  const [editDesc, setEditDesc] = useState(() => !hasUrl(task.description)); // с ссылками сначала показываем кликабельный текст
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
@@ -48,7 +50,18 @@ export function TaskModal({ task, onSave, onDelete, onClose }: Props) {
 
         <label>
           Описание
-          <textarea rows={6} value={description} onChange={(e) => setDescription(e.target.value)} />
+          {editDesc ? (
+            <textarea rows={6} value={description} onChange={(e) => setDescription(e.target.value)} />
+          ) : (
+            <div className="desc-view">
+              <div className="note-text">
+                <Linkified text={description} />
+              </div>
+              <button type="button" onClick={() => setEditDesc(true)}>
+                Редактировать описание
+              </button>
+            </div>
+          )}
         </label>
 
         <div className="row">
