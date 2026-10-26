@@ -171,24 +171,24 @@ def fetch_links(url: str) -> dict[int, str]:
         return {}
 
 
-def sync_once() -> int:
+def sync_once() -> tuple[int, int]:
+    """Возвращает (создано задач, перенесено в Done)."""
     url = csv_url(get_settings().sheet_url)
     text = _fetch(url)
     if text.lstrip().lower().startswith(("<!doctype", "<html")):
         raise RuntimeError("таблица недоступна: откройте доступ «у кого есть ссылка — читатель»")
     with SessionLocal() as db:
         created = import_rows(db, parse_rows(text, fetch_links(url)))
-        archive_past(db)
-        return created
+        return created, archive_past(db)
 
 
 async def sync_loop() -> None:
     settings = get_settings()
     while True:
         try:
-            n = await asyncio.to_thread(sync_once)
-            if n:
-                log.info("sheet: создано задач: %d", n)
+            created, archived = await asyncio.to_thread(sync_once)
+            if created or archived:
+                log.info("sheet: создано задач: %d, в Done: %d", created, archived)
         except Exception as e:  # noqa: BLE001 — сеть/таблица не должны ронять сервер
             log.warning("sheet: %s", e)
         await asyncio.sleep(max(settings.sheet_poll_seconds, 10))

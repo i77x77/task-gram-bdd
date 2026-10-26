@@ -83,6 +83,8 @@ export const api = {
     request<Note>("/notes", json("POST", { title, text, author_name })),
   updateNote: (id: number, patch: { title?: string; text?: string }) => request<Note>(`/notes/${id}`, json("PATCH", patch)),
   deleteNote: (id: number) => request<void>(`/notes/${id}`, { method: "DELETE" }),
+  sheetStatus: () => request<{ enabled: boolean }>("/sheet"),
+  syncSheet: () => request<{ created: number; archived: number }>("/sheet/sync", { method: "POST" }),
   iceServers: () => request<{ iceServers: RTCIceServer[] }>("/call/ice"),
   tags: () => request<Tag[]>("/tags"),
   createTask: (body: TaskCreate) => request<Task>("/tasks", json("POST", body)),

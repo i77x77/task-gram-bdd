@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
 from app import models  # noqa: F401  (регистрация моделей в metadata)
-from app.api import auth, board, call, chat, ingest, notes, tasks
+from app.api import auth, board, call, chat, ingest, notes, sheet as sheet_api, tasks
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.migrate import migrate
@@ -23,7 +23,7 @@ async def lifespan(_: FastAPI):
     with SessionLocal() as db:
         settings = get_settings()
         seed_boards(db, settings.default_boards, settings.default_columns)
-    poller = asyncio.create_task(sheet.sync_loop()) if get_settings().sheet_url else None
+    poller = asyncio.create_task(sheet.sync_loop()) if get_settings().sheet_url and get_settings().sheet_poll_seconds > 0 else None
     yield
     if poller:
         poller.cancel()
@@ -67,4 +67,5 @@ app.include_router(tasks.router, prefix=API_PREFIX, dependencies=protected)
 app.include_router(board.router, prefix=API_PREFIX, dependencies=protected)
 app.include_router(chat.router, prefix=API_PREFIX, dependencies=protected)
 app.include_router(notes.router, prefix=API_PREFIX, dependencies=protected)
+app.include_router(sheet_api.router, prefix=API_PREFIX, dependencies=protected)
 app.include_router(call.router, prefix=API_PREFIX)  # WebSocket: пароль проверяется внутри (заголовки из браузера не задать)

@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     app_password: str = ""  # пароль входа в веб-интерфейс; пусто = без пароля
     # Google-таблица с презентациями: ссылка на таблицу (доступ «у кого есть ссылка») или прямой CSV-экспорт. Пусто = выключено
     sheet_url: str = ""
-    sheet_poll_seconds: int = 60
+    sheet_poll_seconds: int = 0  # 0 = только по кнопке «Синхронизировать»; >0 — ещё и автоопрос
     sheet_board: str = "Презентации"
     sheet_default_year: int = 2026  # если в таблице дата без года (16.11)
     sheet_column: str = "To Do"

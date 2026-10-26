@@ -41,6 +41,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dragged, setDragged] = useState<Task | null>(null);
+  const [sheetEnabled, setSheetEnabled] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [userName, setUserName] = useState(() => {
@@ -70,6 +72,23 @@ export default function App() {
     } catch {
       /* localStorage недоступен */
     }
+  };
+
+  useEffect(() => {
+    api.sheetStatus().then((s) => setSheetEnabled(s.enabled), () => {});
+  }, []);
+
+  const syncSheet = async () => {
+    setSyncing(true);
+    try {
+      const r = await api.syncSheet();
+      setError(r.created || r.archived ? null : "Синхронизация: новых данных нет");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSyncing(false);
+    }
+    await refresh();
   };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -200,6 +219,11 @@ export default function App() {
             }
           }}
         />
+        {sheetEnabled && (
+          <button disabled={syncing} onClick={syncSheet} title="Подтянуть презентации из Google-таблицы">
+            {syncing ? "⏳ Синхронизация…" : "🔄 Таблица"}
+          </button>
+        )}
         <button onClick={() => setNotesOpen(true)}>📝 Заметки</button>
         <BackgroundPicker />
         <ThemeToggle />

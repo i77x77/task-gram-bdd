@@ -367,3 +367,22 @@ def test_sheet_hyperlink_replaces_cell_text(client):
         assert db.query(Task).one().description == "Презентация: Слайды"
         sheet.import_rows(db, sheet.parse_rows(csv_text, links))
         assert db.query(Task).one().description == "Презентация: https://x.ru/slides"
+
+
+def test_sheet_sync_endpoint(client, monkeypatch):
+    from app.api import sheet as sheet_api
+    from app.config import get_settings
+
+    assert client.get("/api/v1/sheet").json() == {"enabled": False}
+    assert client.post("/api/v1/sheet/sync").status_code == 404
+
+    monkeypatch.setattr(get_settings(), "sheet_url", "https://docs.google.com/spreadsheets/d/x/edit")
+    monkeypatch.setattr(sheet_api.sheet, "sync_once", lambda: (2, 1))
+    assert client.get("/api/v1/sheet").json() == {"enabled": True}
+    assert client.post("/api/v1/sheet/sync").json() == {"created": 2, "archived": 1}
+
+    def boom():
+        raise RuntimeError("нет доступа")
+
+    monkeypatch.setattr(sheet_api.sheet, "sync_once", boom)
+    assert client.post("/api/v1/sheet/sync").status_code == 502
