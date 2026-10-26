@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
@@ -11,6 +12,7 @@ from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.migrate import migrate
 from app.security import require_app_password
+from app.services import sheet
 from app.services.tasks import Conflict, NotFound, seed_boards
 
 
@@ -21,7 +23,10 @@ async def lifespan(_: FastAPI):
     with SessionLocal() as db:
         settings = get_settings()
         seed_boards(db, settings.default_boards, settings.default_columns)
+    poller = asyncio.create_task(sheet.sync_loop()) if get_settings().sheet_url else None
     yield
+    if poller:
+        poller.cancel()
 
 
 app = FastAPI(title="TaskGram Backend", version="0.1.0", lifespan=lifespan)

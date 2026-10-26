@@ -274,3 +274,26 @@ def test_notes(client):
     assert len(client.get("/api/v1/notes").json()) == 1
     assert client.delete(f"/api/v1/notes/{a['id']}").status_code == 204
     assert client.patch(f"/api/v1/notes/{a['id']}", json={"text": "x"}).status_code == 404
+
+
+def test_sheet_import(client):
+    from app.database import SessionLocal  # noqa: F401
+    from app.services import sheet
+
+    text = "Название,Дата выступления\nДоклад про ИИ,25.12.2026\nКруглый стол,2026-11-03 14:30\n,\nБез даты,скоро\n"
+    rows = sheet.parse_rows(text)
+    assert [(t, d and d.isoformat()) for t, _, d in rows] == [
+        ("Доклад про ИИ", "2026-12-25T12:00:00+00:00"),
+        ("Круглый стол", "2026-11-03T14:30:00+00:00"),
+        ("Без даты", None),
+    ]
+    assert sheet.csv_url("https://docs.google.com/spreadsheets/d/AbC_1/edit#gid=7").endswith("/AbC_1/export?format=csv&gid=7")
+
+    from app.main import SessionLocal as TestSession  # подменён фикстурой на тестовую БД
+
+    with TestSession() as db:
+        assert sheet.import_rows(db, rows) == 3
+        assert sheet.import_rows(db, rows) == 0  # повторно не дублирует
+    board = next(b for b in client.get("/api/v1/boards").json() if b["name"] == "Презентации")
+    col = next(c for c in client.get(f"/api/v1/board?board_id={board['id']}").json()["columns"] if c["name"] == "To Do")
+    assert [t["title"] for t in col["tasks"]] == ["Доклад про ИИ", "Круглый стол", "Без даты"]

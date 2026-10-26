@@ -5,6 +5,7 @@ services:
       DATABASE_URL: sqlite:////data/taskgram.db
       INGEST_API_KEY: ${INGEST_API_KEY:?set INGEST_API_KEY in .env}
       APP_PASSWORD: ${APP_PASSWORD:-}
+      SHEET_URL: ${SHEET_URL:-}
       TURN_SECRET: ${TURN_SECRET:-}
       TURN_HOST: ${TURN_HOST:-31.57.28.235}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}

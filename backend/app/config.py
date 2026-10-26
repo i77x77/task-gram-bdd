@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     turn_host: str = ""  # публичный IP/хост TURN-сервера
     turn_port: int = 3478
     app_password: str = ""  # пароль входа в веб-интерфейс; пусто = без пароля
+    # Google-таблица с презентациями: ссылка на таблицу (доступ «у кого есть ссылка») или прямой CSV-экспорт. Пусто = выключено
+    sheet_url: str = ""
+    sheet_poll_seconds: int = 60
+    sheet_board: str = "Презентации"
+    sheet_column: str = "To Do"
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
     default_boards: tuple[str, ...] = ("ЕПУТС", "КИПАРИСС", "АИС ОМБУ", "Презентации")
     default_columns: tuple[str, ...] = ("To Do", "In Progress", "Done", "Backlog")

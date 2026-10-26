@@ -93,6 +93,15 @@ class Note(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
+class SheetRow(Base):
+    """Строка Google-таблицы, уже превращённая в задачу (ключ — хеш названия и даты)."""
+
+    __tablename__ = "sheet_rows"
+
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    task_id: Mapped[int | None] = mapped_column(ForeignKey("tasks.id", ondelete="SET NULL"))
+
+
 class Tag(Base):
     __tablename__ = "tags"
 
