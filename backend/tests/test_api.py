@@ -263,3 +263,14 @@ def test_ice_servers(client, monkeypatch):
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()
+
+
+def test_notes(client):
+    assert client.get("/api/v1/notes").json() == []
+    a = client.post("/api/v1/notes", json={"title": " Ссылки ", "text": "https://x.ru", "author_name": "Аня"}).json()
+    assert (a["title"], a["author_name"]) == ("Ссылки", "Аня")
+    b = client.patch(f"/api/v1/notes/{a['id']}", json={"text": "https://y.ru"}).json()
+    assert (b["title"], b["text"]) == ("Ссылки", "https://y.ru")
+    assert len(client.get("/api/v1/notes").json()) == 1
+    assert client.delete(f"/api/v1/notes/{a['id']}").status_code == 204
+    assert client.patch(f"/api/v1/notes/{a['id']}", json={"text": "x"}).status_code == 404

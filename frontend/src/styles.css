@@ -300,3 +300,18 @@ textarea { resize: vertical; }
 .island:has(.call-btn.leave) { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28), 0 0 0 2px #2fb344; }
 .call-peers { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 .call-peer.failed { color: var(--danger); }
+
+.modal.notes { width: min(820px, 100%); height: min(560px, 100%); }
+.notes-head { display: flex; gap: 8px; align-items: center; }
+.notes-body { display: flex; gap: 12px; flex: 1; min-height: 0; }
+.notes-list { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.notes-list button { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notes-list button.active { background: var(--glass-hover); font-weight: 600; }
+.notes-view { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.notes-view textarea { flex: 1; resize: none; }
+.note-text { white-space: pre-wrap; overflow-wrap: anywhere; flex: 1; }
+.note-text a { color: var(--accent-on-card); }
+@media (max-width: 640px) {
+  .notes-body { flex-direction: column; }
+  .notes-list { width: auto; max-height: 120px; }
+}

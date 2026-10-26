@@ -15,6 +15,7 @@ import { api } from "./api/client";
 import type { BoardInfo, Column, Tag, Task, TaskPatch } from "./api/types";
 import { BackgroundPicker } from "./components/BackgroundPicker";
 import { ChatPanel } from "./components/ChatPanel";
+import { NotesModal } from "./components/NotesModal";
 import { Logo } from "./components/Logo";
 import { ColumnView } from "./components/ColumnView";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -40,6 +41,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dragged, setDragged] = useState<Task | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [userName, setUserName] = useState(() => {
     try {
@@ -198,6 +200,7 @@ export default function App() {
             }
           }}
         />
+        <button onClick={() => setNotesOpen(true)}>📝 Заметки</button>
         <BackgroundPicker />
         <ThemeToggle />
       </header>
@@ -247,6 +250,8 @@ export default function App() {
           <DragOverlay>{dragged && <TaskCardView task={dragged} overlay />}</DragOverlay>
         </DndContext>
       )}
+
+      {notesOpen && <NotesModal userName={userName.trim()} onClose={() => setNotesOpen(false)} />}
 
       <ChatPanel userName={userName.trim()} />
 

@@ -1,4 +1,4 @@
-import type { Board, BoardInfo, ChatMessage, OnlineUser, Column, Tag, Task, TaskCreate, TaskPatch } from "./types";
+import type { Board, BoardInfo, ChatMessage, Note, OnlineUser, Column, Tag, Task, TaskCreate, TaskPatch } from "./types";
 
 export const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
@@ -69,6 +69,11 @@ export const api = {
   sendChatMessage: (client_id: string, author_name: string, text: string) =>
     request<ChatMessage>("/chat/messages", json("POST", { client_id, author_name, text })),
   heartbeat: (client_id: string, name: string) => request<OnlineUser[]>("/chat/heartbeat", json("POST", { client_id, name })),
+  notes: () => request<Note[]>("/notes"),
+  createNote: (title: string, text: string, author_name?: string) =>
+    request<Note>("/notes", json("POST", { title, text, author_name })),
+  updateNote: (id: number, patch: { title?: string; text?: string }) => request<Note>(`/notes/${id}`, json("PATCH", patch)),
+  deleteNote: (id: number) => request<void>(`/notes/${id}`, { method: "DELETE" }),
   iceServers: () => request<{ iceServers: RTCIceServer[] }>("/call/ice"),
   tags: () => request<Tag[]>("/tags"),
   createTask: (body: TaskCreate) => request<Task>("/tasks", json("POST", body)),

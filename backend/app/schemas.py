@@ -224,3 +224,25 @@ class OnlineUser(BaseModel):
     client_id: str
     name: str
     in_call: bool = False
+
+
+class NoteCreate(BaseModel):
+    title: str = Field(default="", max_length=200)
+    text: str = Field(default="", max_length=50_000)
+    author_name: str | None = Field(default=None, max_length=100)
+
+
+class NoteUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+    text: str | None = Field(default=None, max_length=50_000)
+
+
+class NoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    text: str
+    author_name: str | None
+    created_at: datetime
+    updated_at: datetime

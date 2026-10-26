@@ -84,3 +84,12 @@ export interface OnlineUser {
   name: string;
   in_call: boolean;
 }
+
+export interface Note {
+  id: number;
+  title: string;
+  text: string;
+  author_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
