@@ -18,7 +18,7 @@ from app.services import tasks as svc
 
 log = logging.getLogger("sheet")
 
-DATE_RE = re.compile(r"(\d{1,4})[./-](\d{1,2})[./-](\d{1,4})(?:[ T,]+(\d{1,2})[:.](\d{2}))?")
+DATE_RE = re.compile(r"(\d{1,4})[./-](\d{1,2})(?:[./-](\d{1,4}))?(?:[ T,]+(\d{1,2})[:.](\d{2}))?")
 SHEET_ID_RE = re.compile(r"/spreadsheets/d/([\w-]+)")
 GID_RE = re.compile(r"[#&?]gid=(\d+)")
 
@@ -33,12 +33,17 @@ def csv_url(url: str) -> str:
 
 
 def parse_date(raw: str) -> datetime | None:
-    """dd.mm.yyyy / dd/mm/yyyy / yyyy-mm-dd, опционально с временем. Только дата -> 12:00 UTC (не уезжает на соседний день)."""
+    """dd.mm.yyyy / dd/mm/yyyy / yyyy-mm-dd / dd.mm (год по умолчанию из настроек), опционально с временем.
+    Только дата -> 12:00 UTC (не уезжает на соседний день)."""
     m = DATE_RE.search(raw)
     if not m:
         return None
-    a, b, c = int(m.group(1)), int(m.group(2)), int(m.group(3))
-    y, mo, d = (a, b, c) if len(m.group(1)) == 4 else (c, b, a)
+    a, b = int(m.group(1)), int(m.group(2))
+    if m.group(3) is None:
+        y, mo, d = get_settings().sheet_default_year, b, a
+    else:
+        c = int(m.group(3))
+        y, mo, d = (a, b, c) if len(m.group(1)) == 4 else (c, b, a)
     if y < 100:
         y += 2000
     hh, mm = (int(m.group(4)), int(m.group(5))) if m.group(4) else (12, 0)
@@ -74,6 +79,12 @@ def import_rows(db: Session, rows: list[tuple[str, str, datetime | None]]) -> in
     for title, raw, due in rows:
         key = row_key(title, raw)
         if key in known:
+            if due:  # раньше дата не распозналась (например, 16.11 без года) — дозаполняем срок
+                row = db.get(SheetRow, key)
+                task = row and row.task_id and db.get(Task, row.task_id)
+                if task and task.source == "sheet" and task.due_at is None:
+                    task.due_at = due
+                    task.description = ""
             continue
         known.add(key)
         task = Task(

@@ -311,3 +311,17 @@ def test_sheet_archive_past(client):
     board = next(b for b in client.get("/api/v1/boards").json() if b["name"] == "Презентации")
     cols = {c["name"]: [t["title"] for t in c["tasks"]] for c in client.get(f"/api/v1/board?board_id={board['id']}").json()["columns"]}
     assert cols["Done"] == ["Прошлая"] and cols["To Do"] == ["Будущая"]
+
+
+def test_sheet_date_without_year_and_backfill(client):
+    from app.main import SessionLocal as TestSession
+    from app.services import sheet
+
+    assert sheet.parse_date("16.11").isoformat() == "2026-11-16T12:00:00+00:00"
+    assert sheet.parse_date("16.11 18:30").isoformat() == "2026-11-16T18:30:00+00:00"
+    with TestSession() as db:
+        sheet.import_rows(db, [("Доклад", "16.11", None)])  # как до исправления: дата не распознана
+        sheet.import_rows(db, sheet.parse_rows("Название,Дата\nДоклад,16.11\n"))
+        from app.models import Task
+        t = db.query(Task).filter_by(title="Доклад").one()
+        assert t.due_at is not None and t.description == ""

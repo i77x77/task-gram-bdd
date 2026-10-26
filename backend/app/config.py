@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     sheet_url: str = ""
     sheet_poll_seconds: int = 60
     sheet_board: str = "Презентации"
+    sheet_default_year: int = 2026  # если в таблице дата без года (16.11)
     sheet_column: str = "To Do"
     sheet_done_column: str = "Done"  # сюда уходят задачи из таблицы, когда дата выступления прошла
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
