@@ -23,6 +23,12 @@ import { TaskCardView } from "./components/TaskCard";
 import { TaskModal } from "./components/TaskModal";
 
 const POLL_MS = 10_000;
+const COLUMN_ORDER = ["backlog", "to do", "in progress", "done"];
+
+function columnOrder(column: Column): number {
+  const index = COLUMN_ORDER.indexOf(column.name.trim().toLowerCase());
+  return index === -1 ? COLUMN_ORDER.length : index;
+}
 
 const taskId = (id: string | number) => Number(String(id).replace("task-", ""));
 
@@ -100,7 +106,9 @@ export default function App() {
       const current = list.find((b) => b.id === boardId) ?? list[0];
       if (!current) return;
       const [board, tagList] = await Promise.all([api.board({ q: q.trim(), tag, boardId: current.id }), api.tags()]);
-      if (!dragging.current) setColumns(board.columns);
+      if (!dragging.current) {
+        setColumns([...board.columns].sort((a, b) => columnOrder(a) - columnOrder(b)));
+      }
       setTags(tagList);
       setError(null);
     } catch (e) {
