@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ночной перекрёсток</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0c121b;color:#f0f3f8;font:16px system-ui}main{width:min(100%,580px);margin:auto;padding:12px}h1{font-size:clamp(22px,6vw,36px);margin:0;color:#c4ff83}header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}p{margin:6px 0;color:#c0cdde}section{position:relative;border:1px solid #40546a;border-radius:16px;overflow:hidden;background:#151f2b}canvas{width:100%;height:min(64dvh,650px);display:block}aside{position:absolute;inset:0;display:grid;place-content:center;text-align:center;padding:16px;background:#0c121bc9}aside[hidden]{display:none}h2{margin:0}button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px 18px;background:#c4ff83;color:#142213;cursor:pointer;touch-action:none}button:focus-visible{outline:3px solid white;outline-offset:-4px}nav{display:flex;gap:10px;margin-top:10px}nav button{flex:1;background:#26394e;color:white}nav button:active{background:#c4ff83;color:#142213}
+</style>
+<main>
+<header><h1>Ночной перекрёсток</h1><div>Счёт <b id="score">0</b> · Рекорд <b id="best">0</b></div></header>
+<section>
+<canvas id="road" width="480" height="600" aria-label="Дорога с машиной и перебегающими пешеходами"></canvas>
+<aside id="overlay"><h2 id="message">Готов к заезду?</h2><p id="hint">Объезжай пешеходов, когда они выбегают на дорогу.</p><button id="start">Играть</button></aside>
+</section>
+<nav aria-label="Управление машиной"><button data-dir="-1">Влево</button><button data-dir="1">Вправо</button></nav>
+<p>На клавиатуре удерживай ← или →.</p>
+</main>
+<script>
+const canvas = document.querySelector('#road');
+const ctx = canvas.getContext('2d');
+const overlay = document.querySelector('#overlay');
+const message = document.querySelector('#message');
+const hint = document.querySelector('#hint');
+const start = document.querySelector('#start');
+const scoreLabel = document.querySelector('#score');
+const bestLabel = document.querySelector('#best');
+const width = canvas.width;
+const carY = 512;
+const roadLeft = 72;
+const roadRight = 408;
+let best = 0;
+try { best = Number(localStorage.getItem('night-crossing-best')) || 0; } catch {}
+bestLabel.textContent = best;
+let running = false;
+let previous = 0;
+let distance = 0;
+let next = 0;
+let carX = width / 2;
+let score = 0;
+let people = [];
+const keys = new Set();
+const pointers = new Map();
+
+function rectangle(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+
+function draw() {
+  rectangle(0, 0, width, 600, '#1f3040');
+  rectangle(roadLeft, 0, roadRight - roadLeft, 600, '#283340');
+  for (let y = -48 + distance % 48; y < 600; y += 48) {
+    rectangle(63, y, 9, 24, '#e3ae6b');
+    rectangle(408, y, 9, 24, '#e3ae6b');
+    rectangle(238, y, 4, 24, '#728092');
+  }
+  for (const person of people) {
+    const step = Math.sin(person.x / 5) * 4;
+    rectangle(person.x - 6, person.y + 4 + step, 4, 9, '#cfddec');
+    rectangle(person.x + 2, person.y + 4 - step, 4, 9, '#cfddec');
+    rectangle(person.x - 8, person.y - 5, 16, 12, person.color);
+    rectangle(person.x - 4, person.y - 12, 8, 8, '#ffc79c');
+  }
+  rectangle(carX - 22, carY - 26, 44, 12, '#18222e');
+  rectangle(carX - 22, carY + 14, 44, 12, '#18222e');
+  ctx.fillStyle = '#a7f55d';
+  ctx.beginPath();
+  ctx.roundRect(carX - 19, carY - 32, 38, 64, 8);
+  ctx.fill();
+  rectangle(carX - 14, carY - 16, 28, 12, '#203751');
+  rectangle(carX - 14, carY + 12, 28, 9, '#314d60');
+  rectangle(carX - 14, carY - 30, 8, 4, '#f5ffd9');
+  rectangle(carX + 6, carY - 30, 8, 4, '#f5ffd9');
+}
+
+function finish() {
+  running = false;
+  if (score > best) {
+    best = score;
+    bestLabel.textContent = best;
+    try { localStorage.setItem('night-crossing-best', String(best)); } catch {}
+  }
+  message.textContent = 'Заезд окончен';
+  hint.textContent = 'Пешеходов объехано: ' + score;
+  start.textContent = 'Ещё раз';
+  overlay.hidden = false;
+  start.focus();
+}
+
+function frame(time) {
+  const dt = Math.min((time - previous) / 1000, 0.04);
+  previous = time;
+  const speed = Math.min(345, 155 + distance / 55);
+  distance += dt * speed;
+  const directions = [...pointers.values()];
+  const left = keys.has('ArrowLeft') || directions.includes(-1);
+  const right = keys.has('ArrowRight') || directions.includes(1);
+  carX = Math.max(roadLeft + 22, Math.min(roadRight - 22, carX + (Number(right) - Number(left)) * 290 * dt));
+
+  next -= dt;
+  if (next <= 0) {
+    const fromLeft = Math.random() < 0.5;
+    people.push({
+      x: fromLeft ? 48 : 432, y: -15,
+      vx: (fromLeft ? 1 : -1) * (72 + Math.random() * 55),
+      color: fromLeft ? '#ff9d64' : '#e990ff',
+    });
+    next = Math.max(0.72, 1.6 - distance / 5500) + Math.random() * 0.4;
+  }
+  for (const person of people) {
+    person.x += person.vx * dt;
+    person.y += speed * dt;
+    if (!person.passed && person.y > carY + 45) {
+      person.passed = true;
+      scoreLabel.textContent = ++score;
+    }
+    if (Math.abs(person.x - carX) < 25 && Math.abs(person.y - carY) < 39) {
+      draw();
+      finish();
+      return;
+    }
+  }
+  people = people.filter(person => person.y < 625 && person.x > 20 && person.x < 460);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+start.addEventListener('click', () => {
+  if (running) return;
+  carX = width / 2;
+  people = [];
+  distance = 0;
+  score = 0;
+  scoreLabel.textContent = score;
+  next = 0.55;
+  overlay.hidden = true;
+  running = true;
+  previous = performance.now();
+  requestAnimationFrame(frame);
+});
+window.addEventListener('keydown', event => {
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    keys.add(event.key);
+  }
+});
+window.addEventListener('keyup', event => keys.delete(event.key));
+window.addEventListener('blur', () => {
+  keys.clear();
+  pointers.clear();
+});
+for (const button of document.querySelectorAll('[data-dir]')) {
+  button.addEventListener('pointerdown', event => {
+    button.setPointerCapture(event.pointerId);
+    pointers.set(event.pointerId, Number(button.dataset.dir));
+  });
+  button.addEventListener('lostpointercapture', event => pointers.delete(event.pointerId));
+}
+draw();
+</script>
+</html>

@@ -50,6 +50,8 @@ export default function App() {
   const [sheetEnabled, setSheetEnabled] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [gameOpen, setGameOpen] = useState(false);
+  const gameDialog = useRef<HTMLDialogElement>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [userName, setUserName] = useState(() => {
     try {
@@ -233,6 +235,10 @@ export default function App() {
           </button>
         )}
         <button onClick={() => setNotesOpen(true)}>📝 Заметки</button>
+        <button onClick={() => {
+          gameDialog.current?.showModal();
+          setGameOpen(true);
+        }}>Мини-игра</button>
         <BackgroundPicker />
         <ThemeToggle />
       </header>
@@ -293,6 +299,13 @@ export default function App() {
       )}
 
       {notesOpen && <NotesModal userName={userName.trim()} onClose={() => setNotesOpen(false)} />}
+
+      <dialog ref={gameDialog} className="game-dialog" aria-label="Ночной перекрёсток" onClose={() => setGameOpen(false)}>
+        <form method="dialog" className="game-dialog-controls">
+          <button>Закрыть игру</button>
+        </form>
+        {gameOpen && <iframe src={`${import.meta.env.BASE_URL}mini-game.html`} title="Мини-игра «Ночной перекрёсток»" />}
+      </dialog>
 
       <ChatPanel userName={userName.trim()} />
 
