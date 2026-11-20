@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Камеры на трассе</title>
+<style>
+* { box-sizing: border-box }
+body { margin: 0; background: #111322; color: #f5f2ff; font: 16px system-ui }
+main { width: min(100%, 540px); margin: auto; padding: 12px }
+h1 { margin: 0; color: #f8ca81; font-size: clamp(22px, 6vw, 32px) }
+p { margin: 6px 0; color: #ddd6ed }
+section { position: relative; overflow: hidden; border: 1px solid #514970; border-radius: 14px }
+canvas { display: block; width: 100%; height: min(58dvh, 580px) }
+aside { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 16px; background: #111322e6 }
+aside[hidden] { display: none }
+h2 { margin: 0 }
+button { font: inherit; font-weight: 700; padding: 11px; border: 0; border-radius: 9px; background: #f8ca81; color: #21182b; cursor: pointer; touch-action: manipulation }
+button:focus-visible { outline: 3px solid #fff; outline-offset: -4px }
+nav { display: flex; gap: 8px; margin-top: 8px }
+nav button { flex: 1 }
+nav button:disabled { opacity: .5; cursor: default }
+</style>
+<main>
+  <h1>Камеры на трассе</h1>
+  <p>Сбито <b id="hits">0</b> · Штрафы <b id="fines">0</b>/5</p>
+  <section>
+    <canvas width="420" height="500" aria-label="Трасса с аркадными камерами по обочинам"></canvas>
+    <aside id="overlay">
+      <h2 id="message">Готов к заезду?</h2>
+      <p id="hint">Стреляй в сторону камеры, когда она входит в подсвеченную зону. Пять штрафов заканчивают заезд.</p>
+      <button id="start">Играть</button>
+    </aside>
+  </section>
+  <nav aria-label="Выстрел">
+    <button data-side="-1" disabled>Влево · ←</button>
+    <button data-side="1" disabled>Вправо · →</button>
+  </nav>
+</main>
+<script>
+const canvas = document.querySelector('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.querySelector('#overlay');
+const start = document.querySelector('#start');
+const hitsLabel = document.querySelector('#hits');
+const finesLabel = document.querySelector('#fines');
+const shootButtons = document.querySelectorAll('[data-side]');
+const zoneTop = 330;
+const zoneBottom = 418;
+const carX = 210;
+const carY = 374;
+let cameras = [];
+let running = false;
+let hits = 0;
+let fines = 0;
+let distance = 0;
+let untilCamera = 0;
+let previous = 0;
+let shot = null;
+
+function rect(x, y, width, height, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, width, height);
+}
+
+function inZone(camera) {
+  return camera.y >= zoneTop && camera.y <= zoneBottom;
+}
+
+function draw() {
+  rect(0, 0, 420, 500, '#201a37');
+  rect(74, 0, 272, 500, '#303247');
+  for (let y = -52 + distance % 52; y < 500; y += 52) {
+    rect(208, y, 4, 25, '#696982');
+    rect(69, y, 5, 26, '#a378b3');
+    rect(346, y, 5, 26, '#a378b3');
+  }
+  rect(0, zoneTop, 74, zoneBottom - zoneTop, '#543955');
+  rect(346, zoneTop, 74, zoneBottom - zoneTop, '#543955');
+  for (const camera of cameras) {
+    const x = camera.side === -1 ? 42 : 378;
+    rect(x - 3, camera.y, 6, 20, '#bba7c9');
+    rect(x - 14, camera.y - 10, 28, 20, inZone(camera) ? '#f8ca81' : '#916fac');
+    rect(x - 5, camera.y - 5, 10, 10, '#272039');
+  }
+  rect(carX - 19, carY - 29, 38, 58, '#f8ca81');
+  rect(carX - 14, carY - 17, 28, 14, '#433655');
+  rect(carX - 14, carY + 12, 28, 10, '#56436b');
+  if (shot) {
+    ctx.beginPath();
+    ctx.moveTo(carX + 20 * shot.side, carY);
+    ctx.lineTo(shot.side === -1 ? 42 : 378, shot.y);
+    ctx.strokeStyle = '#85f7ff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+}
+
+function fire(side) {
+  if (!running || shot) return;
+  const target = cameras.find(camera => camera.side === side && inZone(camera));
+  shot = { side, y: target?.y ?? carY, remaining: 0.16 };
+  if (target) {
+    cameras = cameras.filter(camera => camera !== target);
+    hitsLabel.textContent = ++hits;
+  }
+  draw();
+}
+
+function frame(time) {
+  const dt = Math.min((time - previous) / 1000, 0.04);
+  previous = time;
+  const speed = Math.min(335, 155 + distance / 60);
+  distance += speed * dt;
+  if (shot) {
+    shot.remaining -= dt;
+    if (shot.remaining <= 0) shot = null;
+  }
+
+  untilCamera -= dt;
+  if (untilCamera <= 0) {
+    cameras.push({ side: Math.random() < 0.5 ? -1 : 1, y: -20 });
+    untilCamera = Math.max(0.48, 1.4 - distance / 7000) + Math.random() * 0.35;
+  }
+  for (const camera of cameras) camera.y += speed * dt;
+  const missed = cameras.filter(camera => camera.y > zoneBottom).length;
+  cameras = cameras.filter(camera => camera.y <= zoneBottom);
+  fines = Math.min(5, fines + missed);
+  finesLabel.textContent = fines;
+  draw();
+
+  if (fines < 5) {
+    requestAnimationFrame(frame);
+    return;
+  }
+  running = false;
+  for (const button of shootButtons) button.disabled = true;
+  document.querySelector('#message').textContent = 'Заезд окончен';
+  document.querySelector('#hint').textContent = 'Камер сбито: ' + hits + '. Набралось 5 штрафов.';
+  start.textContent = 'Ещё раз';
+  overlay.hidden = false;
+  start.focus();
+}
+
+start.addEventListener('click', () => {
+  if (running) return;
+  running = true;
+  hits = fines = distance = 0;
+  hitsLabel.textContent = finesLabel.textContent = '0';
+  cameras = [];
+  shot = null;
+  untilCamera = 0.25;
+  overlay.hidden = true;
+  for (const button of shootButtons) button.disabled = false;
+  shootButtons[0].focus();
+  previous = performance.now();
+  requestAnimationFrame(frame);
+});
+window.addEventListener('keydown', event => {
+  if (!running || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+  event.preventDefault();
+  if (!event.repeat) fire(event.key === 'ArrowLeft' ? -1 : 1);
+});
+for (const button of shootButtons) {
+  button.addEventListener('click', () => fire(Number(button.dataset.side)));
+}
+draw();
+</script>
+</html>

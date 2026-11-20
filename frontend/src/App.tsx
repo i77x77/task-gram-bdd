@@ -51,6 +51,7 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [gameOpen, setGameOpen] = useState(false);
+  const [game, setGame] = useState("mini-game.html");
   const gameDialog = useRef<HTMLDialogElement>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [userName, setUserName] = useState(() => {
@@ -300,11 +301,13 @@ export default function App() {
 
       {notesOpen && <NotesModal userName={userName.trim()} onClose={() => setNotesOpen(false)} />}
 
-      <dialog ref={gameDialog} className="game-dialog" aria-label="Ночной перекрёсток" onClose={() => setGameOpen(false)}>
-        <form method="dialog" className="game-dialog-controls">
-          <button>Закрыть игру</button>
-        </form>
-        {gameOpen && <iframe src={`${import.meta.env.BASE_URL}mini-game.html`} title="Мини-игра «Ночной перекрёсток»" />}
+      <dialog ref={gameDialog} className="game-dialog" aria-label="Мини-игры" onClose={() => setGameOpen(false)}>
+        <div className="game-dialog-controls">
+          <button aria-pressed={game === "mini-game.html"} onClick={() => setGame("mini-game.html")}>Перекрёсток</button>
+          <button aria-pressed={game === "camera-game.html"} onClick={() => setGame("camera-game.html")}>Камеры</button>
+          <form method="dialog"><button aria-label="Закрыть игру">Закрыть</button></form>
+        </div>
+        {gameOpen && <iframe src={`${import.meta.env.BASE_URL}${game}`} title={game === "mini-game.html" ? "Ночной перекрёсток" : "Камеры на трассе"} />}
       </dialog>
 
       <ChatPanel userName={userName.trim()} />

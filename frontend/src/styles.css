@@ -225,7 +225,9 @@ textarea { resize: vertical; }
   background: #0c121b;
 }
 .game-dialog::backdrop { background: rgba(10, 14, 30, 0.65); }
-.game-dialog-controls { display: flex; justify-content: flex-end; padding: 8px; }
+.game-dialog-controls { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
+.game-dialog-controls form { margin-left: auto; }
+.game-dialog-controls button[aria-pressed="true"] { outline: 2px solid #c4ff83; outline-offset: -2px; }
 .game-dialog iframe {
   display: block;
   width: 100%;
