@@ -14,18 +14,11 @@ canvas { display: block; width: 100%; height: min(58dvh, 580px) }
 aside { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 16px; background: #111322e6 }
 aside[hidden] { display: none }
 h2 { margin: 0 }
-select, input { font: inherit; padding: 8px; border: 1px solid #65577b; border-radius: 8px; background: #28203a; color: #f5f2ff }
-.settings, form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 }
-form[hidden] { display: none }
-table { width: 100%; border-collapse: collapse; text-align: left }
-th, td { padding: 5px; border-bottom: 1px solid #514970; overflow-wrap: anywhere }
-h2.records { margin-top: 16px; font-size: 20px }
+select { font: inherit; padding: 8px; border: 1px solid #65577b; border-radius: 8px; background: #28203a; color: #f5f2ff }
+.settings { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 }
 canvas { cursor: crosshair; touch-action: manipulation }
 button { font: inherit; font-weight: 700; padding: 11px; border: 0; border-radius: 9px; background: #f8ca81; color: #21182b; cursor: pointer; touch-action: manipulation }
 button:focus-visible { outline: 3px solid #fff; outline-offset: -4px }
-nav { display: flex; gap: 8px; margin-top: 8px }
-nav button { flex: 1 }
-nav button:disabled { opacity: .5; cursor: default }
 </style>
 <main>
   <h1>Камеры на трассе</h1>
@@ -42,24 +35,10 @@ nav button:disabled { opacity: .5; cursor: default }
     <canvas width="420" height="500" aria-label="Трасса с аркадными камерами по обочинам"></canvas>
     <aside id="overlay">
       <h2 id="message">Готов к заезду?</h2>
-      <p id="hint">Кликни или тапни в любую точку поля, чтобы выстрелить туда. Камера выдерживает три попадания. Стрелки стреляют по бокам. Пять штрафов заканчивают заезд.</p>
+      <p id="hint">Кликни или тапни в любую точку поля, чтобы выстрелить туда. Сбей камеру тремя попаданиями, пока она видна. Пять штрафов заканчивают заезд.</p>
       <button id="start">Играть</button>
     </aside>
   </section>
-  <nav aria-label="Выстрел">
-    <button data-side="-1" disabled>Влево · ←</button>
-    <button data-side="1" disabled>Вправо · →</button>
-  </nav>
-  <form id="publish" hidden>
-    <input id="player" aria-label="Публичный ник" placeholder="Публичный ник" maxlength="32" required>
-    <button>Опубликовать результат</button>
-  </form>
-  <h2 class="records">Публичные рекорды</h2>
-  <p id="record-status" role="status"></p>
-  <table>
-    <thead><tr><th>Место</th><th>Игрок</th><th>Камер сбито</th></tr></thead>
-    <tbody id="records"></tbody>
-  </table>
 </main>
 <script>
 const canvas = document.querySelector('canvas');
@@ -68,22 +47,14 @@ const overlay = document.querySelector('#overlay');
 const start = document.querySelector('#start');
 const hitsLabel = document.querySelector('#hits');
 const finesLabel = document.querySelector('#fines');
-const shootButtons = document.querySelectorAll('[data-side]');
 const difficulty = document.querySelector('#difficulty');
-const publish = document.querySelector('#publish');
-const player = document.querySelector('#player');
-const recordStatus = document.querySelector('#record-status');
-const records = document.querySelector('#records');
-const rankingUrl = '/api/v1/camera-records';
 const modes = {
   easy: { speed: 120, maxSpeed: 220, interval: 1.65, minInterval: 0.8 },
   normal: { speed: 155, maxSpeed: 300, interval: 1.4, minInterval: 0.65 },
   hard: { speed: 205, maxSpeed: 365, interval: 1.1, minInterval: 0.5 },
 };
 let mode = modes.normal;
-let rankingRequest = 0;
-const zoneTop = 330;
-const zoneBottom = 418;
+const cameraExit = canvas.height + 17;
 const carX = 210;
 const carY = 374;
 let cameras = [];
@@ -100,10 +71,6 @@ function rect(x, y, width, height, color) {
   ctx.fillRect(x, y, width, height);
 }
 
-function inZone(camera) {
-  return camera.y >= zoneTop && camera.y <= zoneBottom;
-}
-
 function cameraX(camera) {
   return camera.side === -1 ? 42 : 378;
 }
@@ -116,12 +83,10 @@ function draw() {
     rect(69, y, 5, 26, '#a378b3');
     rect(346, y, 5, 26, '#a378b3');
   }
-  rect(0, zoneTop, 74, zoneBottom - zoneTop, '#543955');
-  rect(346, zoneTop, 74, zoneBottom - zoneTop, '#543955');
   for (const camera of cameras) {
     const x = cameraX(camera);
     rect(x - 3, camera.y, 6, 20, '#bba7c9');
-    rect(x - 14, camera.y - 10, 28, 20, inZone(camera) ? '#f8ca81' : '#916fac');
+    rect(x - 14, camera.y - 10, 28, 20, '#f8ca81');
     rect(x - 5, camera.y - 5, 10, 10, '#272039');
     for (let life = 0; life < 3; life++) {
       rect(x - 14 + life * 10, camera.y - 17, 8, 4, life < camera.hp ? '#f8ca81' : '#514970');
@@ -150,11 +115,6 @@ function fire(x, y, target) {
   draw();
 }
 
-function fireSide(side) {
-  const target = cameras.find(camera => camera.side === side && inZone(camera));
-  fire(cameraX({ side }), target?.y ?? carY, target);
-}
-
 function frame(time) {
   const dt = Math.min((time - previous) / 1000, 0.04);
   previous = time;
@@ -171,8 +131,8 @@ function frame(time) {
     untilCamera = Math.max(mode.minInterval, mode.interval - distance / 7000) + Math.random() * 0.35;
   }
   for (const camera of cameras) camera.y += speed * dt;
-  const missed = cameras.filter(camera => camera.y > zoneBottom).length;
-  cameras = cameras.filter(camera => camera.y <= zoneBottom);
+  const missed = cameras.filter(camera => camera.y >= cameraExit).length;
+  cameras = cameras.filter(camera => camera.y < cameraExit);
   fines = Math.min(5, fines + missed);
   finesLabel.textContent = fines;
   draw();
@@ -183,8 +143,6 @@ function frame(time) {
   }
   running = false;
   difficulty.disabled = false;
-  publish.hidden = hits === 0;
-  for (const button of shootButtons) button.disabled = true;
   document.querySelector('#message').textContent = 'Заезд окончен';
   document.querySelector('#hint').textContent = 'Камер сбито: ' + hits + '. Набралось 5 штрафов.';
   start.textContent = 'Ещё раз';
@@ -196,7 +154,6 @@ start.addEventListener('click', () => {
   if (running) return;
   running = true;
   difficulty.disabled = true;
-  publish.hidden = true;
   mode = modes[difficulty.value];
   hits = fines = distance = 0;
   hitsLabel.textContent = finesLabel.textContent = '0';
@@ -204,19 +161,9 @@ start.addEventListener('click', () => {
   shot = null;
   untilCamera = 0.25;
   overlay.hidden = true;
-  for (const button of shootButtons) button.disabled = false;
-  shootButtons[0].focus();
   previous = performance.now();
   requestAnimationFrame(frame);
 });
-window.addEventListener('keydown', event => {
-  if (!running || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
-  event.preventDefault();
-  if (!event.repeat) fireSide(event.key === 'ArrowLeft' ? -1 : 1);
-});
-for (const button of shootButtons) {
-  button.addEventListener('click', () => fireSide(Number(button.dataset.side)));
-}
 canvas.addEventListener('click', event => {
   if (!running) return;
   const bounds = canvas.getBoundingClientRect();
@@ -228,48 +175,6 @@ canvas.addEventListener('click', event => {
   fire(x, y, target);
 });
 
-async function updateRanking(result) {
-  const request = ++rankingRequest;
-  const level = difficulty.value;
-  records.replaceChildren();
-  recordStatus.textContent = result ? 'Сохраняем результат…' : 'Загружаем рекорды…';
-  try {
-    const response = await fetch(rankingUrl + '/' + level, result ? {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-App-Password': localStorage.getItem('appPassword') ?? '' },
-      body: JSON.stringify(result),
-    } : undefined);
-    if (!response.ok) throw new Error('Не удалось обновить таблицу');
-    const rows = await response.json();
-    if (request !== rankingRequest) return false;
-    rows.forEach((row, index) => {
-      const tr = records.insertRow();
-      for (const value of [index + 1, row.name, row.score]) tr.insertCell().textContent = value;
-    });
-    recordStatus.textContent = rows.length ? '' : 'На этой сложности пока нет рекордов.';
-    return true;
-  } catch {
-    if (request === rankingRequest) {
-      recordStatus.textContent = result ? 'Не удалось сохранить результат. Попробуй ещё раз.' : 'Не удалось загрузить рекорды.';
-    }
-    return false;
-  }
-}
-
-difficulty.addEventListener('change', () => {
-  publish.hidden = true;
-  void updateRanking();
-});
-publish.addEventListener('submit', async event => {
-  event.preventDefault();
-  const name = player.value.trim();
-  if (!name || running || publish.hidden) return;
-  const submit = publish.querySelector('button');
-  submit.disabled = start.disabled = difficulty.disabled = true;
-  if (await updateRanking({ name, score: hits })) publish.hidden = true;
-  submit.disabled = start.disabled = difficulty.disabled = false;
-});
-void updateRanking();
 draw();
 </script>
 </html>
