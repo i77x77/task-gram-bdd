@@ -42,7 +42,7 @@ nav button:disabled { opacity: .5; cursor: default }
     <canvas width="420" height="500" aria-label="Трасса с аркадными камерами по обочинам"></canvas>
     <aside id="overlay">
       <h2 id="message">Готов к заезду?</h2>
-      <p id="hint">Нажми на камеру трижды, пока она в подсвеченной зоне. Можно стрелять стрелками. Пять штрафов заканчивают заезд.</p>
+      <p id="hint">Кликни или тапни в любую точку поля, чтобы выстрелить туда. Камера выдерживает три попадания. Стрелки стреляют по бокам. Пять штрафов заканчивают заезд.</p>
       <button id="start">Играть</button>
     </aside>
   </section>
@@ -132,22 +132,27 @@ function draw() {
   rect(carX - 14, carY + 12, 28, 10, '#56436b');
   if (shot) {
     ctx.beginPath();
-    ctx.moveTo(carX + 20 * shot.side, carY);
-    ctx.lineTo(shot.side === -1 ? 42 : 378, shot.y);
+    ctx.moveTo(carX, carY);
+    ctx.lineTo(shot.x, shot.y);
     ctx.strokeStyle = '#85f7ff';
     ctx.lineWidth = 4;
     ctx.stroke();
   }
 }
 
-function fire(side, target = cameras.find(camera => camera.side === side && inZone(camera))) {
+function fire(x, y, target) {
   if (!running) return;
-  shot = { side, y: target?.y ?? carY, remaining: 0.12 };
+  shot = { x, y, remaining: 0.12 };
   if (target && --target.hp === 0) {
     cameras = cameras.filter(camera => camera !== target);
     hitsLabel.textContent = ++hits;
   }
   draw();
+}
+
+function fireSide(side) {
+  const target = cameras.find(camera => camera.side === side && inZone(camera));
+  fire(cameraX({ side }), target?.y ?? carY, target);
 }
 
 function frame(time) {
@@ -207,10 +212,10 @@ start.addEventListener('click', () => {
 window.addEventListener('keydown', event => {
   if (!running || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
   event.preventDefault();
-  if (!event.repeat) fire(event.key === 'ArrowLeft' ? -1 : 1);
+  if (!event.repeat) fireSide(event.key === 'ArrowLeft' ? -1 : 1);
 });
 for (const button of shootButtons) {
-  button.addEventListener('click', () => fire(Number(button.dataset.side)));
+  button.addEventListener('click', () => fireSide(Number(button.dataset.side)));
 }
 canvas.addEventListener('click', event => {
   if (!running) return;
@@ -218,10 +223,9 @@ canvas.addEventListener('click', event => {
   const x = (event.clientX - bounds.left) * canvas.width / bounds.width;
   const y = (event.clientY - bounds.top) * canvas.height / bounds.height;
   const target = cameras.find(camera =>
-    inZone(camera) && Math.abs(cameraX(camera) - x) <= 20
-    && y >= camera.y - 20 && y <= camera.y + 20
+    Math.abs(cameraX(camera) - x) <= 20 && Math.abs(camera.y - y) <= 20
   );
-  if (target) fire(target.side, target);
+  fire(x, y, target);
 });
 
 async function updateRanking(result) {
