@@ -18,6 +18,14 @@ task_tags = Table(
 )
 
 
+class CameraRecord(Base):
+    __tablename__ = "camera_records"
+
+    difficulty: Mapped[str] = mapped_column(String(8), primary_key=True)
+    name: Mapped[str] = mapped_column(String(32), primary_key=True)
+    score: Mapped[int]
+
+
 class User(Base):
     """Telegram-пользователь; PK = Telegram ID (username может меняться)."""
 
